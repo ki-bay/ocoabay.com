@@ -52,11 +52,14 @@ export async function onRequestPost(context) {
 
     if (cartId) await sql`update carts set items = '[]'::jsonb, coupon_code = null, updated_at = now() where id = ${cartId}`;
 
-    // Fire-and-forget order email (no-op until RESEND_API_KEY is set)
-    try {
-      const { sendOrderEmail } = await import("../_lib/email.js");
-      await sendOrderEmail(env, { orderId, email, name, priced });
-    } catch (_) {}
+    // Order email. With Stripe configured, the receipt is sent by the webhook on
+    // payment success instead, so we don't double-send here.
+    if (!env.STRIPE_SECRET_KEY) {
+      try {
+        const { sendOrderEmail } = await import("../_lib/email.js");
+        await sendOrderEmail(env, { orderId, email, name, priced });
+      } catch (_) {}
+    }
 
     return json({ ok: true, order_id: orderId, total_cents: priced.total_cents, currency: priced.currency });
   } catch (e) {

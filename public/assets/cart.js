@@ -123,20 +123,72 @@
   }
 
   // ---------- /checkout/ ----------
+  var _stripe = null; // { stripe, elements, orderId } once card payment is armed
+
+  function loadStripeJs() {
+    return new Promise(function (res, rej) {
+      if (window.Stripe) return res();
+      var s = document.createElement("script"); s.src = "https://js.stripe.com/v3/";
+      s.onload = res; s.onerror = rej; document.head.appendChild(s);
+    });
+  }
+
+  function armCardPayment(p, orderId, msg, btn) {
+    loadStripeJs().then(function () {
+      var stripe = window.Stripe(p.publishable_key);
+      var elements = stripe.elements({ clientSecret: p.client_secret });
+      elements.create("payment").mount("#ocoa-pay-element");
+      var note = document.getElementById("ocoa-pay-note"); if (note) note.style.display = "none";
+      var el = document.getElementById("ocoa-pay-element"); if (el) el.style.display = "block";
+      _stripe = { stripe: stripe, elements: elements, orderId: orderId };
+      if (btn) { btn.disabled = false; btn.textContent = "Pay now"; }
+      if (msg) msg.textContent = "";
+    }).catch(function () {
+      // Stripe.js failed to load — fall back to the no-card confirmation.
+      location.href = "/order-confirmation/?order=" + encodeURIComponent(orderId);
+    });
+  }
+
   function bindCheckout() {
     var form = document.getElementById("ocoa-checkout-form"); if (!form) return;
+    var msgL = document.getElementById("ocoa-pay-msg");
+
+    // If card payment is configured, hint it up front.
+    api("/api/payment").then(function (p) {
+      if (p && p.enabled) { var note = document.getElementById("ocoa-pay-note"); if (note) note.textContent = "Enter your details, then pay securely by card."; }
+    }).catch(function () {});
+
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var msg = document.getElementById("ocoa-pay-msg"), btn = document.getElementById("ocoa-pay-btn");
-      var data = {}; form.querySelectorAll("input, textarea").forEach(function (i) { if (i.name) data[i.name] = i.value; });
       if (msg) msg.textContent = "";
+
+      // Step 2: card form is armed -> confirm the payment.
+      if (_stripe) {
+        if (btn) { btn.disabled = true; btn.textContent = "Processing…"; }
+        _stripe.stripe.confirmPayment({
+          elements: _stripe.elements,
+          confirmParams: { return_url: location.origin + "/order-confirmation/?order=" + encodeURIComponent(_stripe.orderId) },
+        }).then(function (res) {
+          if (res && res.error) { if (msg) msg.textContent = res.error.message || "Payment failed."; if (btn) { btn.disabled = false; btn.textContent = "Pay now"; } }
+          // On success Stripe redirects to return_url.
+        });
+        return;
+      }
+
+      // Step 1: validate, create the order, then arm payment (or finish).
+      var data = {}; form.querySelectorAll("input, textarea").forEach(function (i) { if (i.name) data[i.name] = i.value; });
       var email = data.email || "";
       if (!data.name) { if (msg) msg.textContent = "Please enter your name."; return; }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { if (msg) msg.textContent = "Please enter a valid email."; return; }
       if (btn) { btn.disabled = true; btn.textContent = "Placing order…"; }
       api("/api/checkout", data).then(function (r) {
-        if (r.ok && r.order_id) location.href = "/order-confirmation/?order=" + encodeURIComponent(r.order_id);
-        else { if (msg) msg.textContent = r.error || "Could not place order."; if (btn) { btn.disabled = false; btn.textContent = "Place order"; } }
+        if (!(r.ok && r.order_id)) { if (msg) msg.textContent = r.error || "Could not place order."; if (btn) { btn.disabled = false; btn.textContent = "Place order"; } return; }
+        var oid = r.order_id;
+        fetch("/api/payment?order_id=" + encodeURIComponent(oid)).then(function (x) { return x.json(); }).then(function (p) {
+          if (p && p.enabled && p.client_secret) armCardPayment(p, oid, msg, btn);
+          else location.href = "/order-confirmation/?order=" + encodeURIComponent(oid);
+        }).catch(function () { location.href = "/order-confirmation/?order=" + encodeURIComponent(oid); });
       }).catch(function () { if (msg) msg.textContent = "Network error."; if (btn) { btn.disabled = false; btn.textContent = "Place order"; } });
     });
   }

@@ -569,7 +569,8 @@ Only by paid reservation. For more information, click on the link.</h6>				</div
     <label>City</label><input name="city">
     <label>Country</label><input name="country" value="Dominican Republic">
     <label>Order notes (optional)</label><textarea name="notes" rows="3" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:6px" placeholder="Delivery instructions, etc."></textarea>
-    <p style="margin-top:16px;color:#6b5a4f;font-size:14px">No online payment required right now — place your order and we'll contact you to arrange payment.</p>
+    <p id="ocoa-pay-note" style="margin-top:16px;color:#6b5a4f;font-size:14px">No online payment required right now — place your order and we'll contact you to arrange payment.</p>
+    <div id="ocoa-pay-element" style="display:none;margin:14px 0"></div>
     <div class="ocoa-pay-msg" id="ocoa-pay-msg"></div>
     <button class="ocoa-btn ocoa-btn-primary" id="ocoa-pay-btn" type="submit" style="margin-top:8px">Place order</button>
   </div>
