@@ -103,9 +103,61 @@
     });
   }
 
+  // ----- /checkout/ submit -> create order -----
+  function bindCheckout() {
+    var form = document.getElementById("ocoa-checkout-form");
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var msg = document.getElementById("ocoa-pay-msg");
+      var btn = document.getElementById("ocoa-pay-btn");
+      var data = {};
+      form.querySelectorAll("input").forEach(function (i) { if (i.name) data[i.name] = i.value; });
+      if (msg) msg.textContent = "";
+      if (btn) { btn.disabled = true; btn.textContent = "Placing order…"; }
+      post2("/api/checkout", data).then(function (r) {
+        if (r.ok && r.order_id) {
+          location.href = "/order-confirmation/?order=" + encodeURIComponent(r.order_id);
+        } else {
+          if (msg) msg.textContent = r.error || "Could not place order.";
+          if (btn) { btn.disabled = false; btn.textContent = "Place order"; }
+        }
+      }).catch(function () {
+        if (msg) msg.textContent = "Network error. Please try again.";
+        if (btn) { btn.disabled = false; btn.textContent = "Place order"; }
+      });
+    });
+  }
+  function post2(url, body) {
+    return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify(body) }).then(function (r) { return r.json(); });
+  }
+
+  // ----- /order-confirmation/ -----
+  function renderOrder() {
+    var root = document.getElementById("ocoa-order-root");
+    if (!root) return;
+    var id = new URLSearchParams(location.search).get("order");
+    if (!id) { root.innerHTML = "<p>No order specified.</p>"; return; }
+    fetch("/api/order?id=" + encodeURIComponent(id)).then(function (r) { return r.json(); }).then(function (o) {
+      if (o.error) { root.innerHTML = "<p>Order not found.</p>"; return; }
+      var rows = (o.items || []).map(function (l) {
+        return "<div class='row'><span>" + l.name + " × " + l.qty + "</span><strong>" + money(l.line_total_cents, o.currency) + "</strong></div>";
+      }).join("");
+      root.innerHTML =
+        "<div class='ocoa-order-ok'><h2>Thank you, " + (o.name || "") + "!</h2>" +
+        "<p>Your order <code>" + o.id.slice(0, 8) + "</code> has been received. We'll email <strong>" + o.email + "</strong> with payment details.</p></div>" +
+        "<div class='ocoa-summary' style='max-width:520px;margin:24px auto'>" + rows +
+        "<div class='row' style='border:0;font-size:18px'><span>Total</span><strong>" + money(o.total_cents, o.currency) + "</strong></div>" +
+        "<a class='ocoa-btn' href='/products/' style='margin-top:16px'>Continue shopping</a></div>";
+      setBadge(0);
+    });
+  }
+
   // init
   document.addEventListener("DOMContentLoaded", function () {
     get().then(function (c) { setBadge(c.count || 0); }).catch(function () {});
     renderCart();
+    bindCheckout();
+    renderOrder();
   });
 })();

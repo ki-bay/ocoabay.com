@@ -561,17 +561,16 @@ Only by paid reservation. For more information, click on the link.</h6>				</div
 <main id="content" class="site-main post-648 page type-page status-publish hentry"><div class="ocoa-wrap"><h1 class="entry-title" style="text-align:center;margin:48px 0 8px;font-weight:400">Checkout</h1>
 <form class="ocoa-checkout" id="ocoa-checkout-form">
   <div class="ocoa-fields">
-    <h3>Contact & shipping</h3>
-    <label>Full name</label><input name="name" required>
-    <label>Email</label><input name="email" type="email" required>
+    <h3>Contact &amp; shipping</h3>
+    <label>Full name *</label><input name="name" required>
+    <label>Email *</label><input name="email" type="email" required>
     <label>Phone</label><input name="phone">
     <label>Address</label><input name="address">
     <label>City</label><input name="city">
     <label>Country</label><input name="country" value="Dominican Republic">
-    <h3 style="margin-top:24px">Payment</h3>
-    <div id="ocoa-pay-element"><em style="color:#8a7a6f">Card payment loads here once Stripe keys are configured.</em></div>
+    <p class="ocoa-pay-note" style="margin-top:18px;color:#6b5a4f;font-size:14px">No online payment required right now — place your order and we'll contact you to arrange payment.</p>
     <div class="ocoa-pay-msg" id="ocoa-pay-msg"></div>
-    <button class="ocoa-btn ocoa-btn-primary" id="ocoa-pay-btn" type="submit" style="margin-top:16px">Pay now</button>
+    <button class="ocoa-btn ocoa-btn-primary" id="ocoa-pay-btn" type="submit" style="margin-top:8px">Place order</button>
   </div>
   <aside class="ocoa-summary"><h3>Order summary</h3><div id="ocoa-cart-root"></div></aside>
 </form></div></main>
@@ -982,5 +981,5 @@ const a=JSON.parse(document.getElementById("wp-emoji-settings").textContent),o=(
 //# sourceURL=https://ocoabay.com/wp-includes/js/wp-emoji-loader.min.js
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a10e037fa86de9f4',t:'MTc4MjMyODAyOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/assets/cart.js" defer></script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a10e037fa86de9f4',t:'MTc4MjMyODAyOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/assets/cart.js" defer></script><script src="/assets/forms.js" defer></script></body>
 </html>
