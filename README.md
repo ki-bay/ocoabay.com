@@ -1,16 +1,16 @@
-# OcoaBay — Static Clone (Cloudflare Pages + Supabase)
+# OcoaBay — Static Clone (Cloudflare Pages + Neon)
 
 A pixel-perfect static clone of **ocoabay.com**, served from Cloudflare Pages,
-with a Supabase-backed API layer for forms (and, later, a real store).
+with a Neon-backed API layer for forms (and, later, a real store).
 
 ## Structure
 
 ```
 public/            <- the deployable site (mirrored HTML/CSS/JS/images), served by Cloudflare Pages
 functions/         <- Cloudflare Pages Functions (serverless API at /api/*)
-  api/contact.js   <- contact/reservation form -> Supabase
-supabase/
-  schema.sql       <- database schema (run in Supabase SQL editor)
+  api/contact.js   <- contact/reservation form -> Neon
+db/
+  schema.sql       <- database schema (run in Neon SQL editor)
 .env.example       <- environment variables
 docs/              <- notes, audit, page inventory
 ```
@@ -26,7 +26,7 @@ npm run serve    # http://localhost:8080
 
 ## Deploy to Cloudflare Pages
 
-1. Create a Supabase project, run `supabase/schema.sql` in the SQL editor.
+1. Create a Neon project, run `db/schema.sql` in the SQL editor.
 2. Create a Cloudflare Pages project (connect this repo, or use direct upload).
    - Build command: *(none — static)*
    - Output directory: `public`
@@ -38,4 +38,4 @@ npm run serve    # http://localhost:8080
 - All **marketing pages** (English + Spanish) are exact static copies.
 - **WooCommerce** pages (shop/cart/checkout/account/reservation) are captured
   **visually only** — they do not process orders/logins until rebuilt on
-  Supabase. See `docs/audit.md`.
+  Neon. See `docs/audit.md`.

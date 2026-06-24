@@ -1,18 +1,14 @@
 // Cloudflare Pages Function — handles contact / reservation form submissions
-// and stores them in Supabase. Deployed automatically at /api/contact.
+// and stores them in Neon Postgres. Deployed automatically at /api/contact.
 //
-// Env vars (set in Cloudflare Pages → Settings → Environment variables):
-//   SUPABASE_URL              e.g. https://xxxx.supabase.co
-//   SUPABASE_SERVICE_ROLE_KEY service role key (server-side only, never expose)
+// Env var (set via the Cloudflare Neon integration, or Pages → Settings → env):
+//   DATABASE_URL   Neon pooled connection string (kept secret, never in code)
+
+import { neon } from "@neondatabase/serverless";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-
-  // Basic CORS / same-origin handling
-  const cors = {
-    "Access-Control-Allow-Origin": "*",
-    "Content-Type": "application/json",
-  };
+  const cors = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
   try {
     let payload;
@@ -24,50 +20,22 @@ export async function onRequestPost(context) {
       payload = Object.fromEntries(form.entries());
     }
 
-    // Minimal validation
     const name = (payload.name || "").toString().trim();
     const email = (payload.email || "").toString().trim();
     const message = (payload.message || payload.comments || "").toString().trim();
+    const source_page = payload.source_page || request.headers.get("referer") || null;
 
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      return new Response(JSON.stringify({ ok: false, error: "Invalid email" }), {
-        status: 400,
-        headers: cors,
-      });
+      return new Response(JSON.stringify({ ok: false, error: "Invalid email" }), { status: 400, headers: cors });
     }
 
-    // Insert into Supabase via REST (no SDK needed on the edge)
-    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/submissions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        name,
-        email,
-        message,
-        source_page: payload.source_page || request.headers.get("referer") || null,
-        raw: payload,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return new Response(JSON.stringify({ ok: false, error: "Storage failed", detail: text }), {
-        status: 502,
-        headers: cors,
-      });
-    }
+    const sql = neon(env.DATABASE_URL);
+    await sql`insert into submissions (name, email, message, source_page, raw)
+              values (${name}, ${email}, ${message}, ${source_page}, ${JSON.stringify(payload)})`;
 
     return new Response(JSON.stringify({ ok: true }), { status: 200, headers: cors });
   } catch (err) {
-    return new Response(JSON.stringify({ ok: false, error: err.message }), {
-      status: 500,
-      headers: cors,
-    });
+    return new Response(JSON.stringify({ ok: false, error: err.message }), { status: 500, headers: cors });
   }
 }
 
