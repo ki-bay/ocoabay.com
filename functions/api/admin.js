@@ -20,8 +20,27 @@ export async function onRequestGet(context) {
     const view = new URL(request.url).searchParams.get("view");
     if (view === "reservations") {
       const reservations = await sql`select id, created_at, experience, name, email, phone,
-        arrival_date, people, message, status from reservations order by created_at desc limit 300`;
+        arrival_date, people, message, status from reservations where service_id is null order by created_at desc limit 300`;
       return json({ reservations, resv_statuses: ["new", "confirmed", "completed", "cancelled"] });
+    }
+    if (view === "bookings") {
+      const bookings = await sql`select r.id, r.created_at, r.state, r.email, r.name, r.phone,
+        r.party_size, r.total_cents, r.currency, s.name_en service, s.slug, a.starts_at, a.label
+        from reservations r
+        left join services s on s.id = r.service_id
+        left join availability_slots a on a.id = r.slot_id
+        where r.service_id is not null order by r.created_at desc limit 300`;
+      return json({ bookings, states: ["pending_payment", "confirmed", "completed", "cancelled", "expired"] });
+    }
+    if (view === "availability") {
+      const u = new URL(request.url);
+      const slug = u.searchParams.get("service");
+      const slots = await sql`select a.id, a.starts_at, a.label, a.capacity, a.booked, a.held, a.status, s.slug
+        from availability_slots a join services s on s.id = a.service_id
+        where (${slug}::text is null or s.slug = ${slug})
+          and a.starts_at > now() order by a.starts_at limit 200`;
+      const services = await sql`select slug, name_en from services where active = true order by id`;
+      return json({ slots, services });
     }
     const orders = await sql`select id, created_at, status, email, name, total_cents, currency,
       coupon_code, tracking, items from orders order by created_at desc limit 200`;
@@ -51,6 +70,25 @@ export async function onRequestPost(context) {
       const allowed = ["new", "confirmed", "completed", "cancelled"];
       if (!allowed.includes(body.status)) return json({ error: "Bad status" }, 400);
       await sql`update reservations set status = ${body.status} where id = ${body.id}`;
+      return json({ ok: true });
+    }
+    if (body.action === "booking_state") {
+      const allowed = ["pending_payment", "confirmed", "completed", "cancelled", "expired"];
+      if (!allowed.includes(body.state)) return json({ error: "Bad state" }, 400);
+      const rows = await sql`select state, slot_id, party_size from reservations where id = ${body.id}`;
+      if (!rows.length) return json({ error: "Not found" }, 404);
+      const r = rows[0];
+      const wasActive = ["confirmed", "pending_payment"].includes(r.state);
+      const nowReleased = ["cancelled", "expired"].includes(body.state);
+      if (wasActive && nowReleased && r.slot_id && r.party_size)
+        await sql`update availability_slots set booked = greatest(0, booked - ${r.party_size}) where id = ${r.slot_id}`;
+      await sql`update reservations set state = ${body.state}, status = ${body.state} where id = ${body.id}`;
+      await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${body.id}, ${r.state}, ${body.state}, 'admin')`;
+      return json({ ok: true });
+    }
+    if (body.action === "block_slot" || body.action === "open_slot") {
+      const st = body.action === "block_slot" ? "blocked" : "open";
+      await sql`update availability_slots set status = ${st} where id = ${body.slot_id}`;
       return json({ ok: true });
     }
     return json({ error: "Bad action" }, 400);

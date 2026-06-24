@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book your experience — OcoaBay</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/wp-content/uploads/2025/06/fav.webp">
+<link rel="stylesheet" href="/assets/booking.css">
+<style>
+  body{margin:0;background:#faf7f4;color:#2b1a12;font-family:Georgia,'Times New Roman',serif}
+  .ob-top{background:#6b3f2a;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
+  .ob-top a{color:#fff;text-decoration:none}
+  .ob-top .brand{font-size:20px;letter-spacing:.04em}
+  .ob-top .lang a{font-size:13px;opacity:.85;margin-left:10px}
+  .ob-top .lang a.on{opacity:1;text-decoration:underline}
+  .ob-back{display:block;max-width:780px;margin:18px auto 0;padding:0 18px;font-size:14px}
+</style>
+</head>
+<body>
+  <header class="ob-top">
+    <a class="brand" href="/">OcoaBay</a>
+    <span class="lang" id="ob-lang"></span>
+  </header>
+  <a class="ob-back" href="/experiences/">← Experiences</a>
+  <div id="ocoa-booking" data-service="wine-tour"></div>
+
+  <script>
+    // service + language from query; build the EN/ES toggle preserving service
+    (function(){
+      var P=new URLSearchParams(location.search);
+      var svc=P.get('service')||'wine-tour';
+      var lang=(P.get('lang')||'en').slice(0,2)==='es'?'es':'en';
+      document.documentElement.lang=lang;
+      document.getElementById('ocoa-booking').setAttribute('data-service',svc);
+      var base='/book/?service='+encodeURIComponent(svc);
+      document.getElementById('ob-lang').innerHTML=
+        '<a class="'+(lang==='en'?'on':'')+'" href="'+base+'&lang=en">EN</a>'+
+        '<a class="'+(lang==='es'?'on':'')+'" href="'+base+'&lang=es">ES</a>';
+      var back=document.querySelector('.ob-back');
+      if(lang==='es'){ back.textContent='← Experiencias'; back.href='/experiencias/'; }
+    })();
+  </script>
+  <script src="/assets/booking.js" defer></script>
+</body>
+</html>

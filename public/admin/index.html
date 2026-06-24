@@ -23,6 +23,8 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
     <div id="err" style="color:#b00;margin-top:10px"></div></div>
   <div id="app" style="display:none">
     <div style="margin-bottom:16px"><button onclick="show('orders')" id="tab-orders">Orders</button>
+      <button onclick="show('bookings')" id="tab-bookings" style="background:#8a7a6f">Bookings</button>
+      <button onclick="show('avail')" id="tab-avail" style="background:#8a7a6f">Availability</button>
       <button onclick="show('resv')" id="tab-resv" style="background:#8a7a6f">Reservations</button></div>
     <div id="view-orders">
       <div class="stats" id="stats"></div>
@@ -30,6 +32,13 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
     </div>
     <div id="view-resv" style="display:none">
       <table id="resv"><thead><tr><th>Date</th><th>Experience</th><th>Guest</th><th>Arrival</th><th>People</th><th>Requests</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div id="view-bookings" style="display:none">
+      <table id="bookings"><thead><tr><th>Booked</th><th>Service</th><th>Guest</th><th>When</th><th>People</th><th>Total</th><th>State</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div id="view-avail" style="display:none">
+      <div style="margin-bottom:12px"><label>Service: <select id="avail-svc" onchange="loadAvail()"></select></label></div>
+      <table id="avail"><thead><tr><th>When</th><th>Service</th><th>Slot</th><th>Cap</th><th>Booked</th><th>Held</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 </main>
@@ -55,12 +64,44 @@ function load(){
 function setStatus(id,status){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'status',id:id,status:status})})}
 function setTrack(id,tracking){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'tracking',id:id,tracking:tracking})})}
 function show(v){
-  document.getElementById('view-orders').style.display=v==='orders'?'block':'none';
-  document.getElementById('view-resv').style.display=v==='resv'?'block':'none';
-  document.getElementById('tab-orders').style.background=v==='orders'?'#6b3f2a':'#8a7a6f';
-  document.getElementById('tab-resv').style.background=v==='resv'?'#6b3f2a':'#8a7a6f';
+  var views={orders:'view-orders',bookings:'view-bookings',avail:'view-avail',resv:'view-resv'};
+  for(var k in views){
+    document.getElementById(views[k]).style.display=(k===v?'block':'none');
+    document.getElementById('tab-'+k).style.background=(k===v?'#6b3f2a':'#8a7a6f');
+  }
   if(v==='resv')loadResv();
+  if(v==='bookings')loadBookings();
+  if(v==='avail')loadAvail();
 }
+function loadBookings(){
+  fetch('/api/admin?view=bookings',{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
+    var tb=document.querySelector('#bookings tbody');
+    tb.innerHTML=(d.bookings||[]).map(function(b){
+      var opts=d.states.map(function(s){return '<option '+(s===b.state?'selected':'')+'>'+s+'</option>'}).join('');
+      var when=b.starts_at?new Date(b.starts_at).toLocaleString('en-US',{timeZone:'America/Santo_Domingo',dateStyle:'medium',timeStyle:'short'}):'-';
+      return '<tr><td>'+new Date(b.created_at).toLocaleDateString()+'</td><td>'+(b.service||'')+'</td><td>'+(b.name||'')+
+        '<br><small>'+b.email+(b.phone?' · '+b.phone:'')+'</small></td><td>'+when+'</td><td>'+(b.party_size||'-')+
+        '</td><td>'+money(b.total_cents,b.currency)+'</td>'+
+        '<td><select onchange="setBookingState(\''+b.id+'\',this.value)">'+opts+'</select></td></tr>';
+    }).join('')||'<tr><td colspan=7>No bookings yet.</td></tr>';
+  });
+}
+function setBookingState(id,state){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'booking_state',id:id,state:state})})}
+function loadAvail(){
+  var sel=document.getElementById('avail-svc');
+  var svc=sel.value||'';
+  fetch('/api/admin?view=availability'+(svc?'&service='+encodeURIComponent(svc):''),{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
+    if(!sel.options.length&&d.services){sel.innerHTML='<option value="">All</option>'+d.services.map(function(s){return '<option value="'+s.slug+'">'+s.name_en+'</option>'}).join('');}
+    var tb=document.querySelector('#avail tbody');
+    tb.innerHTML=(d.slots||[]).map(function(s){
+      var when=new Date(s.starts_at).toLocaleString('en-US',{timeZone:'America/Santo_Domingo',dateStyle:'medium',timeStyle:'short'});
+      var rem=Math.max(0,s.capacity-s.booked-s.held);
+      var btn=s.status==='blocked'?'<button onclick="toggleSlot(\''+s.id+'\',false)">Open</button>':'<button onclick="toggleSlot(\''+s.id+'\',true)" style="background:#8b2f2f">Block</button>';
+      return '<tr><td>'+when+'</td><td>'+s.slug+'</td><td>'+(s.label||'')+'</td><td>'+s.capacity+'</td><td>'+s.booked+'</td><td>'+s.held+'</td><td>'+s.status+' <small>('+rem+' left)</small></td><td>'+btn+'</td></tr>';
+    }).join('')||'<tr><td colspan=8>No upcoming slots.</td></tr>';
+  });
+}
+function toggleSlot(id,block){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:block?'block_slot':'open_slot',slot_id:id})}).then(function(){loadAvail()})}
 function loadResv(){
   fetch('/api/admin?view=reservations',{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
     var tb=document.querySelector('#resv tbody');
