@@ -66,6 +66,25 @@
   var t = STR[lang] || STR.en;
 
   var preset = root.getAttribute("data-experience") || "";
+
+  // If this experience maps to a bookable service, upgrade in place to the full booking
+  // widget (live availability + payment) instead of the simple request form. No mirror-HTML
+  // change: we relabel the container and load the booking asset, carrying the detected language.
+  var BOOKABLE = {
+    "Wine Tour & Tasting": "wine-tour",
+    "Full OcoaBay Experience": "full-experience",
+    "OcoaBay Club House": "club-house",
+  };
+  if (BOOKABLE[preset]) {
+    root.id = "ocoa-booking";
+    root.setAttribute("data-service", BOOKABLE[preset]);
+    root.setAttribute("data-lang", lang);
+    root.innerHTML = "";
+    var css = document.createElement("link"); css.rel = "stylesheet"; css.href = "/assets/booking.css"; document.head.appendChild(css);
+    var js = document.createElement("script"); js.src = "/assets/booking.js"; js.defer = true; document.head.appendChild(js);
+    return;
+  }
+
   var title = preset ? t.reserve + display(preset) : t.title;
 
   var opts = EXPERIENCES.map(function (e) {
