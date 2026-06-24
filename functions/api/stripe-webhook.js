@@ -20,7 +20,22 @@ export async function onRequestPost(context) {
     if (event.type === "payment_intent.succeeded") {
       const pi = event.data.object;
       const sql = neon(env.DATABASE_URL);
-      const orderId = pi.metadata && pi.metadata.order_id ? pi.metadata.order_id : null;
+      const meta = pi.metadata || {};
+
+      // ----- Booking (reservation) payment -----
+      if (meta.reservation_id) {
+        const upd = await sql`update reservations set state = 'confirmed', status = 'confirmed'
+          where id = ${meta.reservation_id} and state = 'pending_payment' returning id`;
+        await sql`update payments set status = 'paid', paid_at = now() where reservation_id = ${meta.reservation_id} and kind = 'full'`;
+        if (upd.length) {
+          try { const { sendBookingEmail } = await import("../_lib/email.js"); await sendBookingEmail(env, { sql, reservationId: meta.reservation_id }); } catch (_) {}
+          try { await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${meta.reservation_id}, 'pending_payment', 'confirmed', 'stripe')`; } catch (_) {}
+        }
+        return new Response("ok");
+      }
+
+      // ----- Store order payment -----
+      const orderId = meta.order_id ? meta.order_id : null;
       // Match by the PaymentIntent id we stored on the order; fall back to the metadata order_id.
       let rows = await sql`update orders set status = 'processing', paid_at = now()
         where payment_intent = ${pi.id} and status = 'pending_payment'

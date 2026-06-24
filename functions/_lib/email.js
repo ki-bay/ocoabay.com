@@ -43,3 +43,79 @@ export async function sendOrderEmail(env, { orderId, email, name, priced }) {
 export async function sendWelcomeEmail(env, { email, name }) {
   return sendEmail(env, { to: email, subject: "Welcome to OcoaBay", html: layout(`Welcome, ${name}!`, "<p>Your account is ready. You can now check out faster and track your orders.</p>") });
 }
+
+// Full Experience 3-course menu (shown in the confirmation email). TODO: replace the
+// sample dishes with the real seasonal menu provided by OcoaBay.
+const FULL_EXPERIENCE_MENU = {
+  en: ["<strong>Starter:</strong> Farm garden salad with house vinaigrette",
+       "<strong>Main:</strong> Wood-oven chef's selection (meat / fish / vegetarian)",
+       "<strong>Dessert:</strong> Organic dessert of the day"],
+  es: ["<strong>Entrada:</strong> Ensalada de la huerta con vinagreta de la casa",
+       "<strong>Plato fuerte:</strong> Selección del chef al horno de leña (carne / pescado / vegetariano)",
+       "<strong>Postre:</strong> Postre orgánico del día"],
+};
+
+// Booking confirmation / request email. Loads the reservation + service + slot and renders EN/ES.
+export async function sendBookingEmail(env, { sql, reservationId, arrange = false }) {
+  const rows = await sql`select r.email, r.name, r.language, r.party_size, r.state,
+    r.subtotal_cents, r.tax_cents, r.service_charge_cents, r.total_cents,
+    s.slug, s.name_en, s.name_es, s.config, a.starts_at
+    from reservations r join services s on s.id = r.service_id join availability_slots a on a.id = r.slot_id
+    where r.id = ${reservationId}`;
+  if (!rows.length) return { error: "reservation not found" };
+  const r = rows[0];
+  const es = r.language === "es";
+  const cur = "USD";
+  const when = new Intl.DateTimeFormat(es ? "es-DO" : "en-US",
+    { dateStyle: "full", timeStyle: "short", timeZone: "America/Santo_Domingo" }).format(new Date(r.starts_at));
+  const svcName = es ? r.name_es : r.name_en;
+  const cfg = r.config || {};
+
+  const t = es ? {
+    subj: `Tu reserva en OcoaBay — ${svcName}`,
+    hi: `¡Gracias, ${r.name}!`,
+    got: arrange ? "Hemos recibido tu solicitud de reserva." : "Tu reserva está confirmada.",
+    exp: "Experiencia", when: "Fecha y hora", guests: "Huéspedes",
+    subtotal: "Subtotal", itbis: "ITBIS (18%)", propina: "Propina Legal (10%)", total: "Total",
+    arrange: "Te contactaremos para coordinar el pago.",
+    clubhouse: "Pago por consumo en el lugar. Aplica compra mínima à la carte. Uso de piscina y Club House 11:00–18:30.",
+    menu: "Menú de 3 tiempos (sujeto a disponibilidad de temporada):",
+    policy: "Política: reprogramación permitida hasta 72 h antes; no hay reembolsos.",
+  } : {
+    subj: `Your OcoaBay reservation — ${svcName}`,
+    hi: `Thank you, ${r.name}!`,
+    got: arrange ? "We've received your reservation request." : "Your reservation is confirmed.",
+    exp: "Experience", when: "Date & time", guests: "Guests",
+    subtotal: "Subtotal", itbis: "ITBIS (18%)", propina: "Legal Tip (10%)", total: "Total",
+    arrange: "We'll contact you to arrange payment.",
+    clubhouse: "Pay by consumption on-site. Minimum à la carte purchase applies. Pool & Club House use 11:00–18:30.",
+    menu: "3-course menu (subject to seasonal availability):",
+    policy: "Policy: reschedule allowed up to 72h before; no refunds.",
+  };
+
+  let body = `<p>${t.got}</p>
+    <table style="width:100%;border-collapse:collapse">
+      <tr><td>${t.exp}</td><td align="right"><strong>${svcName}</strong></td></tr>
+      <tr><td>${t.when}</td><td align="right">${when}</td></tr>
+      <tr><td>${t.guests}</td><td align="right">${r.party_size}</td></tr>
+    </table>`;
+
+  if (r.total_cents > 0) {
+    body += `<table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <tr><td>${t.subtotal}</td><td align="right">${money(r.subtotal_cents, cur)}</td></tr>
+      ${r.tax_cents ? `<tr><td>${t.itbis}</td><td align="right">${money(r.tax_cents, cur)}</td></tr>` : ""}
+      ${r.service_charge_cents ? `<tr><td>${t.propina}</td><td align="right">${money(r.service_charge_cents, cur)}</td></tr>` : ""}
+      <tr><td><strong>${t.total}</strong></td><td align="right"><strong>${money(r.total_cents, cur)}</strong></td></tr>
+    </table>`;
+  }
+
+  if (cfg.menu_in_email) {
+    const items = (es ? FULL_EXPERIENCE_MENU.es : FULL_EXPERIENCE_MENU.en).map((i) => `<li>${i}</li>`).join("");
+    body += `<p style="margin-top:14px">${t.menu}</p><ul>${items}</ul>`;
+  }
+  if (r.slug === "club-house") body += `<p style="margin-top:14px">${t.clubhouse}</p>`;
+  if (arrange) body += `<p>${t.arrange}</p>`;
+  body += `<p style="font-size:13px;color:#777;margin-top:14px">${t.policy}</p>`;
+
+  return sendEmail(env, { to: r.email, subject: t.subj, html: layout(t.hi, body) });
+}
