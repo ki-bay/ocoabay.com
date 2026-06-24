@@ -1,7 +1,9 @@
-// POST /api/checkout — create an order from the current cart (no payment yet).
-// Body: { name, email, phone, address, city, country }
-// Creates an order (status 'pending_payment'), clears the cart, returns order id.
+// POST /api/checkout — create an order from the current cart (no card capture yet).
+// Body: { name, email, phone, address, city, country, notes }
+// Snapshots subtotal/discount/shipping/tax/total, decrements stock, clears cart.
 import { neon } from "@neondatabase/serverless";
+import { loadCart, priceCart } from "../_lib/pricing.js";
+import { getSessionCustomer } from "../_lib/auth.js";
 
 function getCookie(request, name) {
   const h = request.headers.get("Cookie") || "";
@@ -21,43 +23,42 @@ export async function onRequestPost(context) {
 
     const sql = neon(env.DATABASE_URL);
     const cartId = getCookie(request, "cart_id");
-    const cartRows = cartId ? await sql`select items from carts where id = ${cartId}` : [];
-    const items = cartRows[0]?.items || [];
+    const cart = await loadCart(sql, cartId);
+    const items = cart?.items || [];
     if (!items.length) return json({ error: "Cart is empty" }, 400);
 
-    // Re-price server-side (never trust client)
-    const ids = items.map((i) => i.product_id);
-    const prods = await sql`select woo_id, name, slug, price_cents, currency from products where woo_id = any(${ids})`;
-    const byId = Object.fromEntries(prods.map((p) => [p.woo_id, p]));
-    let subtotal = 0, currency = "USD";
-    const lineItems = [];
-    for (const it of items) {
-      const p = byId[it.product_id];
-      if (!p) continue;
-      const qty = Math.max(1, parseInt(it.qty, 10) || 1);
-      const lt = (p.price_cents || 0) * qty;
-      subtotal += lt; currency = p.currency || currency;
-      lineItems.push({ product_id: p.woo_id, name: p.name, slug: p.slug, qty, price_cents: p.price_cents, line_total_cents: lt });
-    }
-    if (!lineItems.length) return json({ error: "No valid items" }, 400);
+    const country = (body.country || cart?.country || "DO").toUpperCase();
+    const priced = await priceCart(sql, items, { couponCode: cart?.coupon_code, country });
+    if (!priced.lines.length) return json({ error: "No valid items" }, 400);
 
-    const shipping = {
-      address: body.address || null, city: body.city || null,
-      country: body.country || null, phone: body.phone || null,
-    };
-    const total = subtotal; // shipping/tax added later
+    const customer = await getSessionCustomer(sql, request);
+    const shipping = { address: body.address || null, city: body.city || null, country, phone: body.phone || null };
 
     const rows = await sql`insert into orders
-      (status, email, name, phone, shipping, items, subtotal_cents, total_cents, currency)
+      (status, email, name, phone, shipping, items, subtotal_cents, discount_cents, shipping_cents,
+       tax_cents, total_cents, currency, coupon_code, notes, customer_id)
       values ('pending_payment', ${email}, ${name}, ${body.phone || null}, ${JSON.stringify(shipping)},
-              ${JSON.stringify(lineItems)}, ${subtotal}, ${total}, ${currency})
+        ${JSON.stringify(priced.lines)}, ${priced.subtotal_cents}, ${priced.discount_cents},
+        ${priced.shipping_cents}, ${priced.tax_cents}, ${priced.total_cents}, ${priced.currency},
+        ${priced.coupon?.code || null}, ${body.notes || null}, ${customer?.id || null})
       returning id`;
     const orderId = rows[0].id;
 
-    // Clear the cart
-    if (cartId) await sql`update carts set items = '[]'::jsonb, updated_at = now() where id = ${cartId}`;
+    // Decrement stock atomically for tracked products (low_stock as proxy for quantity if present)
+    for (const l of priced.lines) {
+      await sql`update products set low_stock = greatest(0, coalesce(low_stock,0) - ${l.qty})
+                where woo_id = ${l.product_id} and low_stock is not null`;
+    }
 
-    return json({ ok: true, order_id: orderId, total_cents: total, currency });
+    if (cartId) await sql`update carts set items = '[]'::jsonb, coupon_code = null, updated_at = now() where id = ${cartId}`;
+
+    // Fire-and-forget order email (no-op until RESEND_API_KEY is set)
+    try {
+      const { sendOrderEmail } = await import("../_lib/email.js");
+      await sendOrderEmail(env, { orderId, email, name, priced });
+    } catch (_) {}
+
+    return json({ ok: true, order_id: orderId, total_cents: priced.total_cents, currency: priced.currency });
   } catch (e) {
     return json({ error: e.message }, 500);
   }
