@@ -1,0 +1,39 @@
+/* OcoaBay cart UI — uses the site's existing typography; adds cart-specific bits */
+.ocoa-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+  background:#2b1a12;color:#fff;padding:12px 20px;border-radius:6px;font-size:14px;z-index:99999;
+  opacity:0;transition:opacity .25s,transform .25s;box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:90vw}
+.ocoa-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+a.add_to_cart_button.loading{opacity:.6;pointer-events:none}
+a.add_to_cart_button.added::after{content:" ✓"}
+
+/* Cart page */
+#ocoa-cart-root{max-width:1100px;margin:40px auto;padding:0 20px;min-height:40vh;font-family:inherit}
+.ocoa-cart-loading,.ocoa-cart-empty{text-align:center;padding:60px 0;color:#555}
+.ocoa-cart-table{width:100%;border-collapse:collapse;margin-bottom:24px}
+.ocoa-cart-table th{text-align:left;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  color:#8a7a6f;border-bottom:2px solid #eee;padding:0 12px 12px}
+.ocoa-cart-table td{padding:16px 12px;border-bottom:1px solid #f0ece8;vertical-align:middle}
+.ocoa-ci{display:flex;align-items:center;gap:14px}
+.ocoa-ci img{width:60px;height:60px;object-fit:cover;border-radius:6px}
+.ocoa-qty{display:inline-flex;align-items:center;border:1px solid #ddd;border-radius:6px;overflow:hidden}
+.ocoa-qty button{width:34px;height:34px;border:0;background:#faf7f4;cursor:pointer;font-size:16px}
+.ocoa-qty span{min-width:36px;text-align:center}
+.ocoa-rm{border:0;background:none;font-size:22px;color:#b9a89c;cursor:pointer;line-height:1}
+.ocoa-rm:hover{color:#8b2f2f}
+.ocoa-cart-foot{display:flex;justify-content:flex-end;align-items:center;gap:32px;flex-wrap:wrap}
+.ocoa-totals{font-size:18px}.ocoa-totals strong{margin-left:10px}
+.ocoa-btn{display:inline-block;padding:14px 30px;border-radius:6px;text-decoration:none;
+  border:1px solid #6b3f2a;color:#6b3f2a;font-size:14px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.ocoa-btn-primary{background:#6b3f2a;color:#fff}
+.ocoa-btn-primary:hover{background:#552f1f}
+
+/* Checkout */
+.ocoa-checkout{max-width:1000px;margin:40px auto;padding:0 20px;display:grid;grid-template-columns:1.2fr .8fr;gap:40px;font-family:inherit}
+@media(max-width:780px){.ocoa-checkout{grid-template-columns:1fr}}
+.ocoa-checkout label{display:block;font-size:13px;color:#6b5a4f;margin:14px 0 6px}
+.ocoa-checkout input{width:100%;padding:12px;border:1px solid #ddd;border-radius:6px;font-size:15px}
+.ocoa-summary{background:#faf7f4;border-radius:10px;padding:24px;height:fit-content}
+.ocoa-summary h3{margin:0 0 16px}
+.ocoa-summary .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #efe9e4}
+#ocoa-pay-element{margin:18px 0}
+.ocoa-pay-msg{color:#8b2f2f;font-size:14px;min-height:20px}
