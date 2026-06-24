@@ -17,10 +17,17 @@ export async function onRequestGet(context) {
   if (!authed(request, env)) return json({ error: "Unauthorized" }, 401);
   try {
     const sql = neon(env.DATABASE_URL);
+    const view = new URL(request.url).searchParams.get("view");
+    if (view === "reservations") {
+      const reservations = await sql`select id, created_at, experience, name, email, phone,
+        arrival_date, people, message, status from reservations order by created_at desc limit 300`;
+      return json({ reservations, resv_statuses: ["new", "confirmed", "completed", "cancelled"] });
+    }
     const orders = await sql`select id, created_at, status, email, name, total_cents, currency,
       coupon_code, tracking, items from orders order by created_at desc limit 200`;
     const stats = await sql`select status, count(*)::int n, coalesce(sum(total_cents),0)::int rev from orders group by status`;
-    return json({ orders, stats, statuses: STATUSES });
+    const resvCount = await sql`select count(*)::int n from reservations where status = 'new'`;
+    return json({ orders, stats, statuses: STATUSES, new_reservations: resvCount[0].n });
   } catch (e) { return json({ error: e.message }, 500); }
 }
 
@@ -38,6 +45,12 @@ export async function onRequestPost(context) {
     }
     if (body.action === "tracking") {
       await sql`update orders set tracking = ${body.tracking || null} where id = ${body.id}`;
+      return json({ ok: true });
+    }
+    if (body.action === "resv_status") {
+      const allowed = ["new", "confirmed", "completed", "cancelled"];
+      if (!allowed.includes(body.status)) return json({ error: "Bad status" }, 400);
+      await sql`update reservations set status = ${body.status} where id = ${body.id}`;
       return json({ ok: true });
     }
     return json({ error: "Bad action" }, 400);

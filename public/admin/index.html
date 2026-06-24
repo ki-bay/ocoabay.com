@@ -22,8 +22,15 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
     <input class="tok" id="tok" type="password" placeholder="Admin token"> <button onclick="save()">Enter</button>
     <div id="err" style="color:#b00;margin-top:10px"></div></div>
   <div id="app" style="display:none">
-    <div class="stats" id="stats"></div>
-    <table id="orders"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Total</th><th>Status</th><th>Tracking</th></tr></thead><tbody></tbody></table>
+    <div style="margin-bottom:16px"><button onclick="show('orders')" id="tab-orders">Orders</button>
+      <button onclick="show('resv')" id="tab-resv" style="background:#8a7a6f">Reservations</button></div>
+    <div id="view-orders">
+      <div class="stats" id="stats"></div>
+      <table id="orders"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Total</th><th>Status</th><th>Tracking</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div id="view-resv" style="display:none">
+      <table id="resv"><thead><tr><th>Date</th><th>Experience</th><th>Guest</th><th>Arrival</th><th>People</th><th>Requests</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
   </div>
 </main>
 <script>
@@ -47,6 +54,26 @@ function load(){
 }
 function setStatus(id,status){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'status',id:id,status:status})})}
 function setTrack(id,tracking){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'tracking',id:id,tracking:tracking})})}
+function show(v){
+  document.getElementById('view-orders').style.display=v==='orders'?'block':'none';
+  document.getElementById('view-resv').style.display=v==='resv'?'block':'none';
+  document.getElementById('tab-orders').style.background=v==='orders'?'#6b3f2a':'#8a7a6f';
+  document.getElementById('tab-resv').style.background=v==='resv'?'#6b3f2a':'#8a7a6f';
+  if(v==='resv')loadResv();
+}
+function loadResv(){
+  fetch('/api/admin?view=reservations',{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
+    var tb=document.querySelector('#resv tbody');
+    tb.innerHTML=(d.reservations||[]).map(function(r){
+      var opts=d.resv_statuses.map(function(s){return '<option '+(s===r.status?'selected':'')+'>'+s+'</option>'}).join('');
+      return '<tr><td>'+new Date(r.created_at).toLocaleDateString()+'</td><td>'+(r.experience||'')+
+        '</td><td>'+(r.name||'')+'<br><small>'+r.email+(r.phone?' · '+r.phone:'')+'</small></td><td>'+(r.arrival_date?new Date(r.arrival_date).toLocaleDateString():'-')+
+        '</td><td>'+(r.people||'-')+'</td><td><small>'+(r.message||'')+'</small></td>'+
+        '<td><select onchange="setResv(\''+r.id+'\',this.value)">'+opts+'</select></td></tr>';
+    }).join('')||'<tr><td colspan=7>No reservations yet.</td></tr>';
+  });
+}
+function setResv(id,status){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'resv_status',id:id,status:status})})}
 if(TOK)load();
 </script>
 <script src="/assets/gallery.js" defer></script></body></html>
