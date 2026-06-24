@@ -18,11 +18,11 @@ export async function onRequestGet({ request, env }) {
 
     const from = u.searchParams.get("from"), to = u.searchParams.get("to");
     const slots = rows
-      .filter((r) => (!from || r.starts_at >= from) && (!to || r.starts_at <= to + "T23:59:59Z"))
       .map((r) => ({
-        slot_id: r.id, starts_at: r.starts_at, ends_at: r.ends_at, label: r.label,
-        capacity: r.capacity, remaining: Math.max(0, r.capacity - r.booked - r.held),
-      }));
+        slot_id: r.id, starts_at: new Date(r.starts_at).toISOString(), ends_at: r.ends_at ? new Date(r.ends_at).toISOString() : null,
+        label: r.label, capacity: r.capacity, remaining: Math.max(0, r.capacity - r.booked - r.held),
+      }))
+      .filter((r) => (!from || r.starts_at.slice(0, 10) >= from) && (!to || r.starts_at.slice(0, 10) <= to));
 
     return json({
       service: { slug: svc.slug, type: svc.type, name_en: svc.name_en, name_es: svc.name_es,

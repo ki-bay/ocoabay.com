@@ -40,7 +40,7 @@ export async function onRequestPost({ request, env }) {
     await sql`delete from holds where id = ${H.hold_id}`;
 
     const state = payMode === "none" ? "confirmed" : "pending_payment";
-    const arrival = String(H.starts_at).slice(0, 10);
+    const arrival = new Date(H.starts_at).toISOString().slice(0, 10);
     const details = b.details || {};
 
     const ins = await sql`insert into reservations

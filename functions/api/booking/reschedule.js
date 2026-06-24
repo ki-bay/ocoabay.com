@@ -29,7 +29,7 @@ export async function onRequestPost({ request, env }) {
 
     await sql`update availability_slots set booked = greatest(0, booked - ${qty}) where id = ${r.slot_id}`;
     const newStart = moved[0].starts_at;
-    await sql`update reservations set slot_id = ${b.new_slot_id}, arrival_date = ${String(newStart).slice(0, 10)} where id = ${r.id}`;
+    await sql`update reservations set slot_id = ${b.new_slot_id}, arrival_date = ${new Date(newStart).toISOString().slice(0, 10)} where id = ${r.id}`;
     await logEvent(sql, r.id, r.state, r.state, "customer", { action: "rescheduled", from_slot: r.slot_id, to_slot: b.new_slot_id, new_start: newStart });
 
     return json({ ok: true, new_starts_at: newStart });
