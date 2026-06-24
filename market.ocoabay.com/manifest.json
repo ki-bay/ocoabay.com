@@ -1,0 +1,23 @@
+{
+	"name": "OcoaBay Market",
+		"short_name": "OcoaBay Mark",
+		"description": "",
+		"icons": [
+			{
+				"src": "https://d2j6dbq0eux0bg.cloudfront.net/images/105635503/4513767675.png",
+				"type": "image/jpg",
+				"sizes": "192x192"
+			},
+			{
+				"src": "https://d2j6dbq0eux0bg.cloudfront.net/images/105635503/4513767675.png",
+				"type": "image/jpg",
+				"sizes": "512x512"
+			}
+		],
+	"start_url": ".",
+	"background_color": "#FFFFFF",
+	"display": "standalone",
+	"scope": "/",
+	"theme_color": "#FFFFFF",
+	"version": "1.0"
+}
