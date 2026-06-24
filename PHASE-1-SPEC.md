@@ -12,23 +12,32 @@ Weddings / corporate events / buffet are deferred (capture + pricing not yet def
 
 ## 1. Confirmed parameters
 
-### Guided sessions (shared electric-car tour inventory)
-| Session | Time | Duration | Capacity | Lunch | Products allowed |
-|---|---|---|---|---|---|
-| Morning | 10:30 | 90 min | **18 seats** | no | Wine Tour |
-| Afternoon | 14:00 | 90 min | **18 seats** | yes | Wine Tour (+lunch), Full Experience |
-| Evening | 16:00 | 90 min | **18 seats** | yes | Wine Tour (+lunch), Full Experience |
+### Guided sessions — **18 seats EACH product, per session** (independent counters)
+Confirmed: Wine Tour and Full Experience have **separate** 18-seat pools in the same time slot
+(up to 36 guests total per session across both products). ⇒ one `availability_slots` row per
+**(product, date, time)** — no shared session inventory.
 
-**Assumption to confirm:** the 18 cap is **per session, shared** by both tour products (it's the electric-car tour's seats). A 14:00 session with 10 Full-Experience + 8 Wine-Tour guests is full. ✅/❌?
+| Session | Time | Duration | Capacity (each) | Lunch | Wine Tour | Full Experience |
+|---|---|---|---|---|---|---|
+| Morning | 10:30 | 90 min | 18 | no | ✅ | — |
+| Afternoon | 14:00 | 90 min | 18 | yes | ✅ (+lunch) | ✅ |
+| Evening | 16:00 | 90 min | 18 | yes | ✅ (+lunch) | ✅ |
 
 ### Products & pricing (price per person, **+ 28% tax**)
-| Product | Price p/p | Tax | Includes | Bookable at |
+| Product | Price p/p | ITBIS / Propina | Includes | Bookable at |
 |---|---|---|---|---|
-| **Wine Tour Experience** | **USD $65** | 28% | Guided tasting + cheese/jams, electric-car tour of vineyards & bodega, 90 min | all 3 sessions |
-| **OcoaBay Full Experience** | **USD $145** | 28% | Wine Tour + welcome toast + 3-course wood-oven menu (choose per person) + pool/Clubhouse 11:00–18:30 | 14:00, 16:00 (lunch sessions) |
-| **OcoaBay Club House** (restaurant) | **by consumption** (à la carte, min. purchase) | 28% | Farm-to-table wood-oven à la carte + pool/Clubhouse 11:00–18:30 | any day, **no time slot** |
+| **Wine Tour Experience** | **USD $65** | 18% + 10% | Guided tasting + cheese/jams, electric-car tour of vineyards & bodega, 90 min | all 3 sessions |
+| **OcoaBay Full Experience** | **USD $145** | 18% + 10% | Wine Tour + welcome toast + 3-course wood-oven menu (choose per person) + pool/Clubhouse 11:00–18:30 | 14:00, 16:00 (lunch sessions) |
+| **OcoaBay Club House** (restaurant) | **by consumption** (à la carte, min. purchase) | 18% + 10% (applied on-site) | Farm-to-table wood-oven à la carte + pool/Clubhouse 11:00–18:30 | any day, **no time slot** |
 
-**Tax model (experiences/restaurant):** **28% = 18% VAT (ITBIS) + 10% service.** This differs from the **retail store (18%)**, so tax is now per-service, not global. Seasonal product/wine availability may vary (display note).
+**Tax & service-charge model (two separate line items):**
+- **ITBIS 18%** — government VAT (a *tax*).
+- **Propina Legal 10%** — mandatory *service charge* (DR Labor Code Art. 228), goes entirely to service staff, **dine-in / on-premises only**.
+
+These are shown as **distinct lines** on quotes/receipts (not merged into "tax"):
+`Subtotal → ITBIS 18% → Propina Legal 10% → Total` (= 28% uplift on on-premises experiences).
+
+**The retail store stays at 18% only** — products are shipped/take-out, so the Propina Legal does **not** apply (per ProConsumidor/Supreme Court: no service charge on carry-out/delivery). This is why tax/service is now **per-service**, not global. Seasonal product/wine availability may vary (display note).
 
 ### Restaurant (Club House à la carte)
 - Capacity: **100 covers per full day** (date-level, **no time slots**).
@@ -45,17 +54,18 @@ Weddings / corporate events / buffet are deferred (capture + pricing not yet def
 ## 2. Seed data (Neon)
 
 ```sql
--- Services
+-- Services.  tax_bps = ITBIS (1800 = 18%);  service_charge_bps = Propina Legal (1000 = 10%, dine-in).
 insert into services (slug, type, name_en, name_es, pricing_model, base_price_cents, deposit_bps, capacity_rules, config) values
 ('wine-tour',       'tour',      'Wine Tour Experience','Experiencia Tour de Vinos','per_guest', 6500, 0,
-   '{"per_session_cap":18,"lead_time_min":120,"reschedule_cutoff_h":72,"refundable":false}',
-   '{"tax_bps":2800,"sessions":["10:30","14:00","16:00"],"lunch_sessions":["14:00","16:00"],"payment":"full"}'),
+   '{"session_cap":18,"lead_time_min":120,"reschedule_cutoff_h":72,"refundable":false}',
+   '{"tax_bps":1800,"service_charge_bps":1000,"sessions":["10:30","14:00","16:00"],"lunch_sessions":["14:00","16:00"],"payment":"full"}'),
 ('full-experience', 'experience','OcoaBay Full Experience','Experiencia Completa OcoaBay','per_guest', 14500, 0,
-   '{"per_session_cap":18,"lead_time_min":120,"reschedule_cutoff_h":72,"refundable":false}',
-   '{"tax_bps":2800,"sessions":["14:00","16:00"],"includes_clubhouse":true,"payment":"full"}'),
+   '{"session_cap":18,"lead_time_min":120,"reschedule_cutoff_h":72,"refundable":false}',
+   '{"tax_bps":1800,"service_charge_bps":1000,"sessions":["14:00","16:00"],"includes_clubhouse":true,"payment":"full"}'),
 ('club-house',      'restaurant','OcoaBay Club House','OcoaBay Club House','quote', 0, 0,
    '{"daily_cap":100,"reschedule_cutoff_h":72,"refundable":false}',
-   '{"tax_bps":2800,"payment":"none","min_purchase":true,"hours":"11:00-18:30"}');
+   '{"tax_bps":1800,"service_charge_bps":1000,"payment":"none","min_purchase":true,"hours":"11:00-18:30"}');
+-- Retail store keeps tax_bps=1800, service_charge_bps=0 (shipped/take-out -> no Propina Legal).
 
 -- Optional add-on: lunch on Wine Tour at lunch sessions (price TBC if any)
 insert into service_options (service_id, key, name_en, name_es, kind, price_cents, per_guest)
@@ -68,21 +78,21 @@ from services where slug='full-experience';
 ```
 
 ### Availability generation
-- **Sessions:** a cron/job generates `availability_slots` for `wine-tour` + `full-experience` **N days ahead** (e.g. 60). Because the 18 cap is **shared**, model the session as **one slot per (date, time)** that *both* products consume. Implementation: a single `availability_slots` row keyed to a shared `service_id` (a `guided-session` pseudo-service) that Wine Tour and Full Experience both reference; OR a `session_group` id. (Confirm the shared-cap assumption and I'll finalise which.)
+- **Sessions:** a cron/job generates `availability_slots` **per (product, date, time)** **N days ahead** (e.g. 60). Since caps are **independent (18 each)**, Wine Tour and Full Experience get their **own** slot rows at each time — e.g. `2026-07-01 14:00` produces one `wine-tour` slot (cap 18) and one `full-experience` slot (cap 18). Wine Tour also gets a 10:30 slot; Full Experience does not.
 - **Club House:** one slot per **date**, `capacity = 100`, `label='clubhouse-day'`.
-- Slot generator skips blocked dates and respects opening calendar.
+- Slot generator skips blocked dates and respects the opening calendar.
 
 ---
 
 ## 3. Pricing examples (validation targets)
 
-| Booking | Base | Tax 28% | Total |
-|---|---|---|---|
-| Wine Tour × 2 | $130.00 | $36.40 | **$166.40** |
-| Full Experience × 2 | $290.00 | $81.20 | **$371.20** |
-| Club House (4 covers) | by consumption | — | reservation only, $0 online |
+| Booking | Subtotal | ITBIS 18% | Propina 10% | Total |
+|---|---|---|---|---|
+| Wine Tour × 2 | $130.00 | $23.40 | $13.00 | **$166.40** |
+| Full Experience × 2 | $290.00 | $52.20 | $29.00 | **$371.20** |
+| Club House (4 covers) | by consumption | — | — | reservation only, $0 online |
 
-`/api/booking/quote` computes these server-side from `services.base_price_cents × party_size`, applies `config.tax_bps`, returns the breakdown. Client never sends amounts.
+`/api/booking/quote` computes these server-side from `services.base_price_cents × party_size`, applies `config.tax_bps` (ITBIS) and `config.service_charge_bps` (Propina Legal) as **separate lines**, and returns the itemised breakdown. Client never sends amounts. Both ITBIS and Propina are computed on the subtotal.
 
 ---
 
@@ -105,22 +115,28 @@ from services where slug='full-experience';
 
 ## 5. Engine pieces specific to Phase 1
 
-- **Per-service tax:** `_lib/pricing.js` reads `config.tax_bps` for bookings (28%); the store keeps its 18% path. One shared money helper, two configs.
-- **Shared session capacity:** the key design decision (see §2). Pending your ✅ on shared-18.
+- **Per-service tax + service charge:** the booking pricer reads `config.tax_bps` (ITBIS 18%) **and** `config.service_charge_bps` (Propina Legal 10%) and returns them as **two separate lines**. The store path uses `service_charge_bps=0` (take-out → no Propina). One shared money helper, per-service config.
+- **Independent session capacity (18 each):** one slot row per (product, date, time); Wine Tour and Full Experience never share a counter (confirmed §1).
 - **No-refund policy:** encoded in `capacity_rules.refundable=false` + the 72 h reschedule gate; surfaced in confirmation emails and the booking UI before payment.
 - **Lead time / cutoff:** `lead_time_min` blocks last-minute holds.
 
 ---
 
-## 6. Still needed before these go beyond Phase 1
+## 6. Decisions — resolved vs still needed
 
-1. **Confirm:** 18-seat cap is **shared** across Wine Tour + Full Experience per session? (drives the slot model)
-2. **Club House:** any **minimum purchase amount**, and do you want a **card hold/guarantee** at booking, or pure no-charge reservation?
-3. **Lunch add-on price** on Wine Tour at 14:00/16:00 (or is lunch only via Full Experience)?
-4. **Operating days/hours** the slot generator should use (every day? closed Mondays? season dates?).
-5. **Full Experience menu choices** — the actual 3-course options (for the per-person selector).
-6. **Weddings / corporate events / buffet** — capture fields + pricing/packages + deposit % (deferred until you define them).
-7. WhatsApp: dedicated number — provide when ready (Phase 4); I'll prep the adapter meanwhile.
+**Resolved**
+- ✅ Session cap: **18 each** (Wine Tour and Full Experience independent per session).
+- ✅ Club House: **no-charge reservation** (pay by consumption on-site; no card hold).
+- ✅ Tax/charge: ITBIS 18% + Propina Legal 10% as **separate lines**, dine-in only; store stays 18%.
+- ✅ Policy: no refunds; reschedule only > 72 h.
+
+**Still needed before launch**
+1. **Club House** minimum purchase amount (to show in the reservation note), if any.
+2. **Lunch add-on price** on Wine Tour at 14:00/16:00 (or is lunch only via Full Experience?).
+3. **Operating days/hours** for the slot generator (every day? closed weekday? season window?).
+4. **Full Experience** 3-course menu choices (for the per-person selector).
+5. **Weddings / corporate events / buffet** — capture fields + pricing/packages + deposit % (deferred until defined).
+6. WhatsApp: the dedicated number — provide when ready (Phase 4); I'll prep the adapter meanwhile.
 
 ---
 

@@ -265,6 +265,7 @@ Waiting list when full, auto-closure at capacity, manual date blocking (`status=
 
 Extends the existing Stripe integration:
 - **Pricing engine** (`_lib/pricing.js` generalised): a per-service resolver computes amount server-side from `pricing_model` + party_size + selected `service_options`. Output feeds quote + PaymentIntent. Client amounts are never trusted (already the rule for the store).
+- **Tax vs service charge (DR-specific):** two *separate* lines — **ITBIS 18%** (`tax_bps`, a government tax) and **Propina Legal 10%** (`service_charge_bps`, a mandatory staff service charge under Labor Code Art. 228, **dine-in only**). On-premises experiences carry both (28%); the **retail store carries ITBIS only** (shipped/take-out → no Propina). See `PHASE-1-SPEC.md`.
 - **Modes:** `deposit` (`deposit_bps`, e.g. 2500 = 25%), `full`, and `balance` schedules for weddings/events (rows in `payments` with `due_at`).
 - **PaymentIntent** per `payments` row with an **idempotency key** (`reservation_id:kind`) to prevent duplicate charges. Reuses the hardened `/api/stripe-webhook` (HMAC-verified, status-guarded) — on `payment_intent.succeeded`, mark the `payments` row `paid`, advance the reservation (`pending_payment → confirmed`), fire confirmation email.
 - **Balance chasing:** cron scans `payments where kind='balance' and status='pending' and due_at < now()+window` → reminder emails; optional saved-card auto-charge (Stripe off-session) if the client opts in.
