@@ -19,6 +19,22 @@ export async function validateCoupon(sql, code, subtotalCents) {
   return { coupon: c };
 }
 
+// Map a free-text country (the checkout form sends a name) to an ISO code so
+// shipping_rates / tax_rates (keyed by code, e.g. "DO") match. Defaults to "DO",
+// the store's home market; unknown 2-letter inputs pass through as-is.
+export function normalizeCountry(c) {
+  if (!c) return "DO";
+  const k = c.toString().trim().toUpperCase();
+  const NAMES = {
+    "DOMINICAN REPUBLIC": "DO", "REPUBLICA DOMINICANA": "DO", "REPÚBLICA DOMINICANA": "DO",
+    "RD": "DO", "DOM": "DO", "REP. DOMINICANA": "DO",
+    "UNITED STATES": "US", "USA": "US", "ESTADOS UNIDOS": "US",
+  };
+  if (NAMES[k]) return NAMES[k];
+  if (k.length === 2) return k; // already an ISO code
+  return k; // falls back to the country-null default rate if no exact match
+}
+
 // items: [{product_id, qty}], opts: {couponCode, country}
 export async function priceCart(sql, items, opts = {}) {
   const out = {
@@ -65,7 +81,7 @@ export async function priceCart(sql, items, opts = {}) {
   const taxable = out.subtotal_cents - out.discount_cents;
 
   // Shipping (flat with free-over threshold)
-  const country = (opts.country || "DO").toUpperCase();
+  const country = normalizeCountry(opts.country);
   const ship = await sql`select flat_cents, free_over_cents from shipping_rates
     where active = true and (country = ${country} or country is null) order by sort limit 1`;
   if (ship[0] && !out.free_shipping) {
