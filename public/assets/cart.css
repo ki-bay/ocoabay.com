@@ -83,3 +83,12 @@ a.add_to_cart_button.added::after{content:" ✓"}
 .ocoa-card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
 .ocoa-card h3{font-size:16px;font-weight:400;margin:12px 0 4px}
 .ocoa-card .price{color:#6b3f2a;margin-bottom:10px}
+
+/* Product lightbox */
+#ocoa-lightbox{position:fixed;inset:0;z-index:100001;background:rgba(15,10,8,.92);display:none;align-items:center;justify-content:center}
+#ocoa-lightbox.open{display:flex}
+#ocoa-lightbox img{max-width:90vw;max-height:88vh;object-fit:contain;border-radius:4px}
+#ocoa-lightbox button{position:absolute;background:rgba(255,255,255,.12);color:#fff;border:0;cursor:pointer;border-radius:8px}
+#ocoa-lightbox .lb-x{top:20px;right:24px;font-size:30px;width:48px;height:48px}
+#ocoa-lightbox .lb-prev,#ocoa-lightbox .lb-next{top:50%;transform:translateY(-50%);font-size:40px;width:56px;height:72px}
+#ocoa-lightbox .lb-prev{left:24px}#ocoa-lightbox .lb-next{right:24px}

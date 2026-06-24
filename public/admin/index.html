@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>OcoaBay Admin — Orders</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#faf7f4;color:#2b1a12}
+header{background:#6b3f2a;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+main{max-width:1100px;margin:24px auto;padding:0 16px}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.stat{background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+th,td{padding:12px;border-bottom:1px solid #f0ece8;text-align:left;font-size:14px}
+select,input{padding:6px;border:1px solid #ddd;border-radius:6px}
+.tok{padding:8px;border:1px solid #ddd;border-radius:6px;width:280px}
+button{background:#6b3f2a;color:#fff;border:0;padding:8px 14px;border-radius:6px;cursor:pointer}
+code{background:#f3ede8;padding:2px 6px;border-radius:4px}
+</style></head>
+<body>
+<header><strong>OcoaBay Admin</strong><span id="who"></span></header>
+<main>
+  <div id="login"><h2>Admin access</h2><p>Enter the admin token (set as <code>ADMIN_TOKEN</code> in Cloudflare).</p>
+    <input class="tok" id="tok" type="password" placeholder="Admin token"> <button onclick="save()">Enter</button>
+    <div id="err" style="color:#b00;margin-top:10px"></div></div>
+  <div id="app" style="display:none">
+    <div class="stats" id="stats"></div>
+    <table id="orders"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Total</th><th>Status</th><th>Tracking</th></tr></thead><tbody></tbody></table>
+  </div>
+</main>
+<script>
+var TOK = localStorage.getItem('ocoa_admin')||'';
+function hdr(){return {'Authorization':'Bearer '+TOK,'Content-Type':'application/json'}}
+function money(c,cur){return new Intl.NumberFormat('en-US',{style:'currency',currency:cur||'USD'}).format((c||0)/100)}
+function save(){TOK=document.getElementById('tok').value.trim();localStorage.setItem('ocoa_admin',TOK);load()}
+function load(){
+  fetch('/api/admin?view=orders',{headers:hdr()}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){
+    document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';
+    document.getElementById('stats').innerHTML=d.stats.map(function(s){return '<div class="stat"><strong>'+s.n+'</strong> '+s.status.replace('_',' ')+'<br><small>'+money(s.rev)+'</small></div>'}).join('');
+    var tb=document.querySelector('#orders tbody');
+    tb.innerHTML=d.orders.map(function(o){
+      var opts=d.statuses.map(function(s){return '<option '+(s===o.status?'selected':'')+'>'+s+'</option>'}).join('');
+      return '<tr><td><code>'+String(o.id).slice(0,8)+'</code></td><td>'+new Date(o.created_at).toLocaleDateString()+
+        '</td><td>'+(o.name||'')+'<br><small>'+o.email+'</small></td><td>'+money(o.total_cents,o.currency)+
+        '</td><td><select onchange="setStatus(\''+o.id+'\',this.value)">'+opts+'</select></td>'+
+        '<td><input value="'+(o.tracking||'')+'" onblur="setTrack(\''+o.id+'\',this.value)" placeholder="tracking #"></td></tr>';
+    }).join('');
+  }).catch(function(){document.getElementById('err').textContent='Invalid token.'});
+}
+function setStatus(id,status){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'status',id:id,status:status})})}
+function setTrack(id,tracking){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'tracking',id:id,tracking:tracking})})}
+if(TOK)load();
+</script>
+<script src="/assets/gallery.js" defer></script></body></html>
