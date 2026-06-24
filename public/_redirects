@@ -1,5 +1,2 @@
-# Cloudflare Pages redirects — extend after launch from real 404 logs.
-# WooCommerce add-to-cart query links are handled client-side by cart.js.
-/?add-to-cart=:id   /products/   302
-# Common store aliases (safe):
-/store    /products/   301
+# Cloudflare Pages redirects — add real 301s here after launch from 404 logs.
+# (add-to-cart links are handled client-side by cart.js; no redirect needed.)
