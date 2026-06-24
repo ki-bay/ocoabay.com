@@ -92,3 +92,16 @@ a.add_to_cart_button.added::after{content:" ✓"}
 #ocoa-lightbox .lb-x{top:20px;right:24px;font-size:30px;width:48px;height:48px}
 #ocoa-lightbox .lb-prev,#ocoa-lightbox .lb-next{top:50%;transform:translateY(-50%);font-size:40px;width:56px;height:72px}
 #ocoa-lightbox .lb-prev{left:24px}#ocoa-lightbox .lb-next{right:24px}
+
+/* Reservation / booking form */
+#ocoa-reservation{max-width:880px;margin:50px auto;padding:0 20px}
+.ocoa-resv-card{background:#faf7f4;border-radius:14px;padding:34px}
+.ocoa-resv-card h3{margin:0 0 20px;text-align:center;font-weight:400;font-size:26px;color:#2b1a12}
+.ocoa-resv-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:680px){.ocoa-resv-grid{grid-template-columns:1fr}}
+.ocoa-resv label{display:block;font-size:13px;color:#6b5a4f;margin-bottom:14px}
+.ocoa-resv input,.ocoa-resv select,.ocoa-resv textarea{width:100%;margin-top:6px;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
+.ocoa-resv-msg{color:#8b2f2f;font-size:14px;min-height:18px;margin:6px 0}
+#ocoa-reservation .ocoa-btn-primary{width:100%;text-align:center;padding:15px;font-size:15px;margin-top:6px}
+.ocoa-resv-ok{text-align:center;padding:30px 0}
+.ocoa-resv-ok h4{color:#6b3f2a;font-size:22px;margin:0 0 10px}
