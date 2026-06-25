@@ -84,12 +84,13 @@
   var S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null };
 
   // ---- service catalogue for the picker (shown when no service is preset) ----
+  var IMG = "/wp-content/uploads/2025/06/";
   var CATALOG = [
-    { slug: "wine-tour", en: "Wine Tour Experience", es: "Experiencia Tour de Vinos", price: 6500,
+    { slug: "wine-tour", en: "Wine Tour Experience", es: "Experiencia Tour de Vinos", price: 6500, img: IMG + "Wine-Tour-Tasting-01.webp",
       den: "90-min guided tasting + electric-car vineyard & bodega tour.", des: "Cata guiada de 90 min + recorrido en carro eléctrico por viñedos y bodega." },
-    { slug: "full-experience", en: "Full OcoaBay Experience", es: "Experiencia Completa OcoaBay", price: 14500,
+    { slug: "full-experience", en: "Full OcoaBay Experience", es: "Experiencia Completa OcoaBay", price: 14500, img: IMG + "full-experiences.jpg",
       den: "Wine Tour + welcome toast + 3-course wood-oven menu + pool & Club House.", des: "Tour de Vinos + brindis + menú de 3 tiempos al horno de leña + piscina y Club House." },
-    { slug: "club-house", en: "OcoaBay Club House", es: "OcoaBay Club House", price: 0,
+    { slug: "club-house", en: "OcoaBay Club House", es: "OcoaBay Club House", price: 0, img: IMG + "Beach-Pool.webp",
       den: "À-la-carte farm-to-table dining + pool & Club House (pay on-site).", des: "Comida à la carte de la granja a la mesa + piscina y Club House (pago en el lugar)." },
   ];
 
@@ -116,14 +117,16 @@
     var sub = es ? "Selecciona una experiencia para ver disponibilidad y reservar." : "Select an experience to see availability and book.";
     var cta = es ? "Reservar" : "Book";
     var taxNote = es ? "+ 18% ITBIS + 10% propina" : "+ 18% ITBIS + 10% tip";
-    var h = '<div class="ob-card"><h2 class="ob-h">' + title + '</h2><p class="ob-sub">' + sub + '</p><div class="ob-picker">';
+    var h = '<div class="ob-pickwrap"><h2 class="ob-pick-title">' + title + '</h2><p class="ob-pick-sub">' + sub + '</p><div class="ob-picker">';
     CATALOG.forEach(function (c) {
       var price = c.price
         ? '<span class="ob-pick-p">' + money(c.price) + ' <span class="pp">' + T.per_person + '</span></span><span class="ob-pick-tax">' + taxNote + "</span>"
         : '<span class="ob-pick-p">' + (es ? "Por consumo" : "By consumption") + "</span>";
-      h += '<button class="ob-pick" data-svc="' + c.slug + '"><strong>' + (es ? c.es : c.en) + "</strong>" +
+      h += '<button class="ob-pick" data-svc="' + c.slug + '">' +
+        '<span class="ob-pick-img" style="background-image:url(' + c.img + ')"></span>' +
+        '<span class="ob-pick-body"><strong>' + (es ? c.es : c.en) + "</strong>" +
         '<span class="ob-pick-d">' + (es ? c.des : c.den) + "</span>" + price +
-        '<span class="ob-pick-cta">' + cta + " &rarr;</span></button>";
+        '<span class="ob-pick-cta">' + cta + " &rarr;</span></span></button>";
     });
     h += "</div></div>";
     root.innerHTML = h;

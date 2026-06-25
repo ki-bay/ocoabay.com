@@ -15,19 +15,26 @@
 #ocoa-booking .ob-step{margin:18px 0}
 #ocoa-booking .ob-label{display:block;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600}
 
-/* service picker — responsive card grid (3-up desktop, 1-up mobile) */
-#ocoa-booking .ob-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-top:20px}
-#ocoa-booking .ob-pick{display:flex;flex-direction:column;text-align:left;background:#fff;border:1px solid var(--line);
-  border-top:4px solid var(--ocoa);border-radius:16px;padding:22px 20px 18px;transition:transform .15s,box-shadow .15s,border-color .15s;height:100%}
-#ocoa-booking .ob-pick:hover{border-color:var(--ocoa);box-shadow:0 12px 28px rgba(116,24,27,.12);transform:translateY(-4px)}
-#ocoa-booking .ob-pick strong{display:block;font-size:18px;font-weight:700;color:var(--ocoa);margin-bottom:8px;line-height:1.25}
-#ocoa-booking .ob-pick-d{display:block;font-size:13.5px;color:var(--muted);line-height:1.5;flex:1 1 auto;margin-bottom:14px}
-#ocoa-booking .ob-pick-p{display:block;font-size:18px;color:var(--ink);font-weight:700}
-#ocoa-booking .ob-pick-p .pp{font-size:13px;font-weight:400;color:var(--muted)}
-#ocoa-booking .ob-pick-tax{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
-#ocoa-booking .ob-pick-cta{display:inline-block;margin-top:16px;color:#fff;background:var(--ocoa);border-radius:8px;padding:9px 14px;
-  font-size:13px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;align-self:flex-start;transition:background .15s}
-#ocoa-booking .ob-pick:hover .ob-pick-cta{background:var(--ocoa-d)}
+/* service picker — full-bleed photographic cards */
+#ocoa-booking .ob-pickwrap{max-width:1040px;margin:0 auto}
+#ocoa-booking .ob-pick-title{text-align:center;font-size:30px;font-weight:700;color:var(--ink);letter-spacing:-.01em;margin:0 0 6px}
+#ocoa-booking .ob-pick-sub{text-align:center;color:var(--muted);font-size:15px;margin:0 0 26px}
+#ocoa-booking .ob-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+#ocoa-booking .ob-pick{position:relative;display:flex;align-items:flex-end;min-height:340px;border-radius:18px;overflow:hidden;
+  padding:0;border:0;color:#fff;background:#3a1012;box-shadow:0 8px 22px rgba(40,8,10,.14);transition:transform .25s,box-shadow .25s}
+#ocoa-booking .ob-pick:hover{transform:translateY(-5px);box-shadow:0 20px 40px rgba(116,24,27,.28)}
+#ocoa-booking .ob-pick-img{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .6s ease}
+#ocoa-booking .ob-pick:hover .ob-pick-img{transform:scale(1.07)}
+#ocoa-booking .ob-pick::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(35,6,8,.94) 8%,rgba(35,6,8,.45) 52%,rgba(35,6,8,.05) 100%)}
+#ocoa-booking .ob-pick-body{position:relative;z-index:1;padding:22px 22px 24px;width:100%}
+#ocoa-booking .ob-pick-body strong{display:block;font-size:21px;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.2}
+#ocoa-booking .ob-pick-d{display:block;font-size:13px;color:rgba(255,255,255,.86);line-height:1.5;margin-bottom:14px}
+#ocoa-booking .ob-pick-p{display:block;font-size:19px;font-weight:700;color:#fff}
+#ocoa-booking .ob-pick-p .pp{font-size:12px;font-weight:400;color:rgba(255,255,255,.82)}
+#ocoa-booking .ob-pick-tax{display:block;font-size:11px;color:rgba(255,255,255,.72);margin-top:2px}
+#ocoa-booking .ob-pick-cta{display:inline-block;margin-top:16px;background:#fff;color:var(--ocoa);border-radius:9px;padding:10px 18px;
+  font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;transition:background .2s,color .2s}
+#ocoa-booking .ob-pick:hover .ob-pick-cta{background:var(--ocoa);color:#fff}
 #ocoa-booking .ob-back-link{color:var(--ocoa);font-size:14px;margin-bottom:10px;font-weight:600;padding:0}
 
 /* month calendar */
