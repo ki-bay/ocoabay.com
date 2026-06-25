@@ -1,60 +1,76 @@
-/* OcoaBay booking widget — brand: wine burgundy #74181B + Barlow */
+/* OcoaBay booking widget — brand: wine burgundy #74181B + Barlow.
+   All rules scoped under #ocoa-booking so the host theme's global button/input
+   styles can't bleed into the widget. */
 :root{--ocoa:#74181B;--ocoa-d:#5a1316;--ocoa-soft:#f6ecec;--bg:#faf7f5;--ink:#212121;--muted:#7a7068;--line:#ece2e2}
 #ocoa-booking{max-width:780px;margin:36px auto;padding:0 18px;font-family:'Barlow',-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink)}
-.ob-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 6px 24px rgba(116,24,27,.06)}
-.ob-h{font-weight:600;font-size:26px;margin:0 0 4px;color:var(--ink);letter-spacing:-.01em}
-.ob-sub{color:var(--muted);margin:0 0 20px;font-size:15px}
-.ob-step{margin:18px 0}
-.ob-label{display:block;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.ob-dates,.ob-sessions{display:flex;flex-wrap:wrap;gap:8px}
-/* modern month calendar */
-.ob-cal{border:1px solid #ece2e2;border-radius:14px;padding:14px 16px;background:#fff;max-width:360px}
-.ob-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.ob-cal-title{font-size:16px;font-weight:600;color:var(--ink)}
-.ob-cal-nav{width:34px;height:34px;border:1px solid #e4d8d8;background:#fff;border-radius:9px;cursor:pointer;font-size:20px;line-height:1;color:var(--ocoa)}
-.ob-cal-nav:hover:not(:disabled){background:var(--bg);border-color:var(--ocoa)}
-.ob-cal-nav:disabled{opacity:.3;cursor:default}
-.ob-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.ob-cal-dow{text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding-bottom:4px}
-.ob-cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:14px;border:0;background:none;font-family:inherit}
-.ob-cal-day.muted{color:#c4b3b3}
-.ob-cal-day.avail{color:var(--ink);cursor:pointer;font-weight:600;background:#f6ecec;border:1px solid transparent}
-.ob-cal-day.avail:hover{border-color:var(--ocoa)}
-.ob-cal-day.avail.sel{background:var(--ocoa);color:#fff}
-.ob-chip{border:1px solid #e4d8d8;background:#fff;border-radius:10px;padding:10px 14px;cursor:pointer;font-size:14px;min-width:64px;text-align:center;transition:.15s}
-.ob-chip:hover{border-color:var(--ocoa)}
-.ob-chip.sel{background:var(--ocoa);color:#fff;border-color:var(--ocoa)}
-.ob-chip.full{opacity:.4;cursor:not-allowed;text-decoration:line-through}
-.ob-chip small{display:block;font-size:11px;opacity:.8;margin-top:2px}
-.ob-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:560px){.ob-row{grid-template-columns:1fr}}
-.ob-field{margin:12px 0}
-.ob-field label{display:block;font-size:13px;color:#7a7068;margin-bottom:6px}
-.ob-field input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit}
-.ob-qty{display:inline-flex;align-items:center;border:1px solid #ddd;border-radius:8px;overflow:hidden}
-.ob-qty button{width:40px;height:42px;border:0;background:var(--bg);cursor:pointer;font-size:18px}
-.ob-qty span{min-width:48px;text-align:center;font-size:16px}
-.ob-summary{background:var(--bg);border-radius:10px;padding:16px 18px;margin:16px 0}
-.ob-summary .r{display:flex;justify-content:space-between;padding:5px 0;font-size:15px}
-.ob-summary .r.t{border-top:1px solid #ece2e2;margin-top:6px;padding-top:10px;font-weight:bold;font-size:17px}
-.ob-note{font-size:13px;color:var(--muted);margin:10px 0}
-.ob-btn{display:block;width:100%;text-align:center;padding:15px;border-radius:9px;border:0;background:var(--ocoa);color:#fff;
-  font-size:15px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit}
-.ob-btn:hover{background:var(--ocoa-d)}
-.ob-btn:disabled{opacity:.55;cursor:default}
-.ob-msg{color:#a01a1f;font-size:14px;min-height:18px;margin:8px 0}
-.ob-ok{text-align:center;padding:24px 0}
-.ob-ok h3{color:var(--ocoa);font-size:24px;margin:0 0 10px;font-weight:400}
-#ob-pay-element{margin:16px 0}
-.ob-policy{font-size:12px;color:var(--muted);border-top:1px solid #ece2e2;margin-top:18px;padding-top:12px}
-.ob-picker{display:flex;flex-direction:column;gap:14px;margin-top:16px}
-.ob-pick{position:relative;display:block;text-align:left;border:1px solid var(--line);background:#fff;border-radius:14px;
-  padding:18px 46px 18px 20px;cursor:pointer;font-family:inherit;transition:transform .15s,box-shadow .15s,border-color .15s;border-left:4px solid var(--ocoa)}
-.ob-pick:hover{border-color:var(--ocoa);box-shadow:0 8px 22px rgba(116,24,27,.10);transform:translateY(-2px)}
-.ob-pick::after{content:"→";position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--ocoa);font-size:20px;opacity:.5;transition:opacity .15s}
-.ob-pick:hover::after{opacity:1}
-.ob-pick strong{display:block;font-size:18px;font-weight:600;color:var(--ocoa);margin-bottom:4px}
-.ob-pick-d{display:block;font-size:14px;color:var(--muted);line-height:1.45}
-.ob-pick-p{display:block;font-size:15px;color:var(--ink);font-weight:600;margin-top:8px}
-.ob-pick-p small{font-weight:400;color:var(--muted)}
-.ob-back-link{background:none;border:0;color:var(--ocoa);cursor:pointer;font-size:14px;padding:0;margin-bottom:10px;font-family:inherit;font-weight:600}
+
+/* reset: neutralise host-theme button/input styling inside the widget */
+#ocoa-booking button{margin:0;font-family:inherit;cursor:pointer;background:transparent;color:var(--ink);border:0;
+  letter-spacing:normal;text-transform:none;box-shadow:none;line-height:normal;width:auto;border-radius:0}
+#ocoa-booking input,#ocoa-booking select,#ocoa-booking textarea{font-family:inherit;color:var(--ink);box-sizing:border-box}
+
+#ocoa-booking .ob-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 6px 24px rgba(116,24,27,.06)}
+#ocoa-booking .ob-h{font-weight:600;font-size:26px;margin:0 0 4px;color:var(--ink);letter-spacing:-.01em}
+#ocoa-booking .ob-sub{color:var(--muted);margin:0 0 20px;font-size:15px}
+#ocoa-booking .ob-step{margin:18px 0}
+#ocoa-booking .ob-label{display:block;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600}
+
+/* service picker */
+#ocoa-booking .ob-picker{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+#ocoa-booking .ob-pick{position:relative;display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);
+  border-left:4px solid var(--ocoa);border-radius:14px;padding:18px 46px 18px 20px;transition:transform .15s,box-shadow .15s,border-color .15s}
+#ocoa-booking .ob-pick:hover{border-color:var(--ocoa);box-shadow:0 8px 22px rgba(116,24,27,.10);transform:translateY(-2px)}
+#ocoa-booking .ob-pick::after{content:"→";position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--ocoa);font-size:20px;opacity:.45}
+#ocoa-booking .ob-pick:hover::after{opacity:1}
+#ocoa-booking .ob-pick strong{display:block;font-size:18px;font-weight:600;color:var(--ocoa);margin-bottom:4px}
+#ocoa-booking .ob-pick-d{display:block;font-size:14px;color:var(--muted);line-height:1.45}
+#ocoa-booking .ob-pick-p{display:block;font-size:15px;color:var(--ink);font-weight:600;margin-top:8px}
+#ocoa-booking .ob-pick-p small{font-weight:400;color:var(--muted)}
+#ocoa-booking .ob-back-link{color:var(--ocoa);font-size:14px;margin-bottom:10px;font-weight:600;padding:0}
+
+/* month calendar */
+#ocoa-booking .ob-cal{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff;max-width:360px}
+#ocoa-booking .ob-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#ocoa-booking .ob-cal-title{font-size:16px;font-weight:600;color:var(--ink)}
+#ocoa-booking .ob-cal-nav{width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:20px;color:var(--ocoa)}
+#ocoa-booking .ob-cal-nav:hover:not(:disabled){background:var(--ocoa-soft);border-color:var(--ocoa)}
+#ocoa-booking .ob-cal-nav:disabled{opacity:.3;cursor:default}
+#ocoa-booking .ob-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+#ocoa-booking .ob-cal-dow{text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding-bottom:4px}
+#ocoa-booking .ob-cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:14px}
+#ocoa-booking .ob-cal-day.muted{color:#c4b3b3}
+#ocoa-booking .ob-cal-day.avail{color:var(--ink);font-weight:600;background:var(--ocoa-soft);border:1px solid transparent}
+#ocoa-booking .ob-cal-day.avail:hover{border-color:var(--ocoa)}
+#ocoa-booking .ob-cal-day.avail.sel{background:var(--ocoa);color:#fff}
+
+/* session/time chips */
+#ocoa-booking .ob-sessions{display:flex;flex-wrap:wrap;gap:8px}
+#ocoa-booking .ob-chip{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;font-size:14px;min-width:70px;text-align:center;transition:.15s;color:var(--ink)}
+#ocoa-booking .ob-chip:hover{border-color:var(--ocoa)}
+#ocoa-booking .ob-chip.sel{background:var(--ocoa);color:#fff;border-color:var(--ocoa)}
+#ocoa-booking .ob-chip small{display:block;font-size:11px;opacity:.8;margin-top:2px}
+
+/* fields */
+#ocoa-booking .ob-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){#ocoa-booking .ob-row{grid-template-columns:1fr}}
+#ocoa-booking .ob-field{margin:12px 0}
+#ocoa-booking .ob-field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+#ocoa-booking .ob-field input,#ocoa-booking .ob-field select,#ocoa-booking .ob-field textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;background:#fff}
+#ocoa-booking .ob-qty{display:inline-flex;align-items:center;border:1px solid #ddd;border-radius:8px;overflow:hidden}
+#ocoa-booking .ob-qty button{width:40px;height:42px;background:var(--bg);font-size:18px;color:var(--ink);border-radius:0}
+#ocoa-booking .ob-qty span{min-width:48px;text-align:center;font-size:16px}
+
+/* summary + button */
+#ocoa-booking .ob-summary{background:var(--bg);border-radius:10px;padding:16px 18px;margin:16px 0}
+#ocoa-booking .ob-summary .r{display:flex;justify-content:space-between;padding:5px 0;font-size:15px}
+#ocoa-booking .ob-summary .r.t{border-top:1px solid var(--line);margin-top:6px;padding-top:10px;font-weight:700;font-size:17px}
+#ocoa-booking .ob-note{font-size:13px;color:var(--muted);margin:10px 0}
+#ocoa-booking .ob-btn{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;background:var(--ocoa);color:#fff;
+  font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+#ocoa-booking .ob-btn:hover{background:var(--ocoa-d)}
+#ocoa-booking .ob-btn:disabled{opacity:.55;cursor:default}
+#ocoa-booking .ob-msg{color:#a01a1f;font-size:14px;min-height:18px;margin:8px 0}
+#ocoa-booking .ob-ok{text-align:center;padding:24px 0}
+#ocoa-booking .ob-ok h3{color:var(--ocoa);font-size:24px;margin:0 0 10px;font-weight:600}
+#ocoa-booking #ob-pay-element{margin:16px 0}
+#ocoa-booking .ob-policy{font-size:12px;color:var(--muted);border-top:1px solid var(--line);margin-top:18px;padding-top:12px}
