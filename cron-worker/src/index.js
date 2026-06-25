@@ -13,7 +13,7 @@ export default {
     const jobs = [];
     if (c === "*/15 * * * *") jobs.push(hit("/api/cron/holds-sweeper"), hit("/api/cron/attendance-replay"));
     else if (c === "*/30 * * * *") jobs.push(hit("/api/cron/cs-digest"));
-    else if (c === "0 * * * *") jobs.push(hit("/api/cron/reminders"), hit("/api/cron/abandoned"));
+    else if (c === "0 * * * *") jobs.push(hit("/api/cron/reminders"), hit("/api/cron/abandoned"), hit("/api/cron/odoo-sync"));
     else if (c === "30 6 * * *") jobs.push(hit("/api/cron/generate-slots"));
 
     ctx.waitUntil(Promise.all(jobs));

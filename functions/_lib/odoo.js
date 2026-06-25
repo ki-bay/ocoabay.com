@@ -31,6 +31,37 @@ export function toOdooUTC(localStr) {
   return new Date(iso).toISOString().slice(0, 19).replace("T", " ");
 }
 
+// Find a customer by email or create it. Returns res.partner id.
+export async function upsertPartner(env, uid, { name, email, phone, lang, country }) {
+  if (email) {
+    const found = await odooExec(env, uid, "res.partner", "search_read", [[["email", "=", email]]], { fields: ["id"], limit: 1 });
+    if (found.length) return found[0].id;
+  }
+  return odooExec(env, uid, "res.partner", "create", [{
+    name: name || email || "Customer", email: email || false, phone: phone || false,
+    customer_rank: 1, ...(lang ? { lang: lang === "es" ? "es_DO" : "en_US" } : {}),
+  }]);
+}
+
+// Create a customer invoice (account.move, out_invoice). lines: [{name, qty, price_unit}].
+// Leaves it in draft by default; set post=true to validate it.
+export async function createInvoice(env, uid, partnerId, lines, { ref, post = false } = {}) {
+  const invoice_line_ids = lines.map((l) => [0, 0, { name: l.name, quantity: l.qty || 1, price_unit: (l.price_unit || 0) }]);
+  const id = await odooExec(env, uid, "account.move", "create", [{
+    move_type: "out_invoice", partner_id: partnerId, ...(ref ? { ref } : {}), invoice_line_ids,
+  }]);
+  if (post) { try { await odooExec(env, uid, "account.move", "action_post", [[id]]); } catch (_) {} }
+  return id;
+}
+
+// Create a CRM lead/opportunity (optional pipeline use).
+export async function createLead(env, uid, { name, contact, email, phone, expected_revenue, description }) {
+  return odooExec(env, uid, "crm.lead", "create", [{
+    name: name || "Web enquiry", contact_name: contact || false, email_from: email || false, phone: phone || false,
+    ...(expected_revenue ? { expected_revenue } : {}), ...(description ? { description } : {}),
+  }]);
+}
+
 // Toggle attendance: open record -> set check_out; else create check_in. Maps device user id to
 // hr.employee via the configurable field (default: barcode). Returns {action, employee_id}.
 export async function pushAttendance(env, uid, deviceUserId, odooUTC) {
