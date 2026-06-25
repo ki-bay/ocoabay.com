@@ -61,7 +61,8 @@ Legend: **[YOU]** = needs your action/credentials/content · **[ME]** = I build 
 | B5 | Configure device → Cloud/ADMS → `ocoabay.com` :443 HTTPS `/iclock/` + add SN to `DEVICE_SERIALS` | YOU | Device then pushes automatically. |
 | B6 | Verify live punches → `hr.attendance`; replay backfill | ME | After B1–B5. |
 | B7 | **DR payroll salary rules** (TSS, ISR, regalía, overtime, vacaciones) | ME | ✅ Design done in `ODOO-PAYROLL-DR.md` (rules, ISR brackets, parameters). Wire into Odoo once B1–B2 done; confirm rates with accountant. |
-| B8 | **Invoicing automation** (store/booking → `account.move`) | ME | The "later" item you flagged; scope after B1. |
+| B8 | **Invoicing automation** (store/booking → `account.move`) | ME | ✅ Built + mock-validated (`cron/odoo-sync`); activates with `ODOO_*`. |
+| B9 | **Payroll bank disbursement — Banco Popular H2H** | YOU+ME | Pay net salaries automatically via Banco Popular Host-to-Host (SFTP+PGP). Full plan + bank request checklist in `ODOO-PAYROLL-BANK-POPULAR.md`. **YOU:** request Popular's file layout + H2H pack (see doc). **ME:** build Odoo module — employee bank fields, dual-approval batch, file generator (finalised to Popular's layout), SFTP/PGP submit + ACK processing; plus TSS (SUIR) + DGII (IR-3/IR-17) files. Bank onboarding ≈ a few weeks. |
 
 ---
 
