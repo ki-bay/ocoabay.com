@@ -127,6 +127,38 @@ async function loadResv(sql, id) {
   return rows[0] || null;
 }
 
+// Payment link (CS-initiated booking) — bilingual, with a clear pay button.
+export async function sendPaymentLink(env, { sql, reservationId, url }) {
+  const rows = await sql`select r.email, r.name, r.language, r.party_size, r.subtotal_cents, r.tax_cents,
+    r.service_charge_cents, r.total_cents, a.starts_at, s.name_en, s.name_es
+    from reservations r join services s on s.id = r.service_id join availability_slots a on a.id = r.slot_id
+    where r.id = ${reservationId}`;
+  if (!rows.length) return;
+  const r = rows[0]; const es = r.language === "es"; const cur = "USD";
+  const svcName = es ? r.name_es : r.name_en;
+  const when = new Intl.DateTimeFormat(es ? "es-DO" : "en-US", { dateStyle: "full", timeStyle: "short", timeZone: "America/Santo_Domingo" }).format(new Date(r.starts_at));
+  const t = es
+    ? { subj: "Completa tu reserva en OcoaBay", hi: `¡Hola, ${r.name}!`, intro: "Tu reserva está lista. Completa el pago de forma segura para confirmarla:",
+        exp: "Experiencia", when: "Fecha y hora", guests: "Huéspedes", total: "Total", itbis: "ITBIS (18%)", propina: "Propina Legal (10%)", sub: "Subtotal",
+        pay: "Pagar ahora", policy: "Reprogramación hasta 72 h antes. No hay reembolsos." }
+    : { subj: "Complete your OcoaBay booking", hi: `Hi ${r.name}!`, intro: "Your reservation is ready. Complete payment securely to confirm it:",
+        exp: "Experience", when: "Date & time", guests: "Guests", total: "Total", itbis: "ITBIS (18%)", propina: "Legal Tip (10%)", sub: "Subtotal",
+        pay: "Pay now", policy: "Reschedule allowed up to 72h before. No refunds." };
+  const body = `<p>${t.intro}</p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0">
+      <tr><td>${t.exp}</td><td align="right"><strong>${svcName}</strong></td></tr>
+      <tr><td>${t.when}</td><td align="right">${when}</td></tr>
+      <tr><td>${t.guests}</td><td align="right">${r.party_size}</td></tr>
+      <tr><td>${t.sub}</td><td align="right">${money(r.subtotal_cents, cur)}</td></tr>
+      ${r.tax_cents ? `<tr><td>${t.itbis}</td><td align="right">${money(r.tax_cents, cur)}</td></tr>` : ""}
+      ${r.service_charge_cents ? `<tr><td>${t.propina}</td><td align="right">${money(r.service_charge_cents, cur)}</td></tr>` : ""}
+      <tr><td><strong>${t.total}</strong></td><td align="right"><strong>${money(r.total_cents, cur)}</strong></td></tr>
+    </table>
+    <p style="text-align:center;margin:22px 0"><a href="${url}" style="background:#6b3f2a;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:15px">${t.pay}</a></p>
+    <p style="font-size:12px;color:#999">${t.policy}</p>`;
+  return sendEmail(env, { to: r.email, subject: t.subj, html: layout(t.hi, body) });
+}
+
 // Reminder ~24-48h before the experience.
 export async function sendBookingReminder(env, { sql, reservationId }) {
   const r = await loadResv(sql, reservationId); if (!r) return;

@@ -27,6 +27,7 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
       <button onclick="show('avail')" id="tab-avail" style="background:#8a7a6f">Availability</button>
       <button onclick="show('convos')" id="tab-convos" style="background:#8a7a6f">Conversations</button>
       <button onclick="show('resv')" id="tab-resv" style="background:#8a7a6f">Reservations</button>
+      <button onclick="show('newbk')" id="tab-newbk" style="background:#8a7a6f">New Booking</button>
       <button onclick="show('export')" id="tab-export" style="background:#8a7a6f">Export</button></div>
     <div id="view-orders">
       <div class="stats" id="stats"></div>
@@ -46,6 +47,24 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <table id="convos"><thead><tr><th>Channel</th><th>Status</th><th>Last message</th><th>Msgs</th><th></th></tr></thead><tbody></tbody></table>
         <div id="convo-thread" style="background:#fff;border-radius:10px;padding:14px;max-height:60vh;overflow:auto"><em>Select a conversation.</em></div>
+      </div>
+    </div>
+    <div id="view-newbk" style="display:none">
+      <div style="background:#fff;border-radius:10px;padding:18px;max-width:680px">
+        <h3 style="margin-top:0">Create a booking for a customer</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Service<br><select id="cs-svc" onchange="csOnSvc()" style="width:100%"></select></label>
+          <label>Language<br><select id="cs-lang" style="width:100%"><option value="en">English</option><option value="es">Español</option></select></label>
+          <label>Date<br><select id="cs-date" onchange="csOnDate()" style="width:100%"></select></label>
+          <label>Session<br><select id="cs-slot" style="width:100%"></select></label>
+          <label>Guests<br><input id="cs-qty" type="number" min="1" value="2" onchange="csFields()" style="width:100%"></label>
+          <label>Customer name<br><input id="cs-name" style="width:100%"></label>
+          <label>Email<br><input id="cs-email" type="email" style="width:100%"></label>
+          <label>Phone<br><input id="cs-phone" style="width:100%"></label>
+        </div>
+        <div id="cs-fields" style="margin-top:12px"></div>
+        <button onclick="csSubmit()" style="margin-top:14px">Check availability &amp; send payment link</button>
+        <div id="cs-result" style="margin-top:14px"></div>
       </div>
     </div>
     <div id="view-export" style="display:none">
@@ -78,7 +97,7 @@ function load(){
 function setStatus(id,status){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'status',id:id,status:status})})}
 function setTrack(id,tracking){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'tracking',id:id,tracking:tracking})})}
 function show(v){
-  var views={orders:'view-orders',bookings:'view-bookings',avail:'view-avail',convos:'view-convos',resv:'view-resv',export:'view-export'};
+  var views={orders:'view-orders',bookings:'view-bookings',avail:'view-avail',convos:'view-convos',resv:'view-resv',newbk:'view-newbk',export:'view-export'};
   for(var k in views){
     document.getElementById(views[k]).style.display=(k===v?'block':'none');
     document.getElementById('tab-'+k).style.background=(k===v?'#6b3f2a':'#8a7a6f');
@@ -87,6 +106,7 @@ function show(v){
   if(v==='bookings')loadBookings();
   if(v==='avail')loadAvail();
   if(v==='convos')loadConvos();
+  if(v==='newbk')csInit();
 }
 function loadConvos(){
   fetch('/api/admin?view=conversations',{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
@@ -111,6 +131,59 @@ function exportCsv(type){
   fetch('/api/admin?view=export&type='+type,{headers:hdr()}).then(function(r){return r.blob()}).then(function(b){
     var u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=type+'.csv';a.click();URL.revokeObjectURL(u);
   });
+}
+// ---- CS-agent booking tool ----
+var CS={byDate:{}};
+var CS_DIET=['No restrictions','Vegetarian','Vegan','Gluten-free','Other'];
+var CS_OCC=['—','Birthday','Anniversary','Honeymoon','Corporate','Other'];
+var CS_FIELDS={
+  'wine-tour':[['tour_language',['English','Spanish']],['dietary',CS_DIET],['occasion',CS_OCC]],
+  'full-experience':[['tour_language',['English','Spanish']],['dietary',CS_DIET],['occasion',CS_OCC]],
+  'club-house':[['arrival_time',['11:00','12:00','13:00','14:00','15:00','16:00','17:00']],['seating',['No preference','Indoor','Outdoor','Poolside']],['dietary',CS_DIET],['occasion',CS_OCC]]
+};
+function csInit(){
+  fetch('/api/admin?view=availability',{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
+    var s=document.getElementById('cs-svc');
+    if(!s.options.length){s.innerHTML=(d.services||[]).map(function(x){return '<option value="'+x.slug+'">'+x.name_en+'</option>'}).join('');}
+    csOnSvc();
+  });
+}
+function csOnSvc(){
+  var svc=document.getElementById('cs-svc').value;
+  fetch('/api/admin?view=availability&service='+encodeURIComponent(svc),{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
+    CS.byDate={};
+    (d.slots||[]).forEach(function(s){if(s.status!=='open')return;var rem=s.capacity-s.booked-s.held;if(rem<=0)return;var day=new Date(s.starts_at).toISOString().slice(0,10);(CS.byDate[day]=CS.byDate[day]||[]).push({id:s.id,label:s.label,rem:rem,starts:s.starts_at});});
+    var dates=Object.keys(CS.byDate).sort();
+    document.getElementById('cs-date').innerHTML=dates.map(function(d2){return '<option value="'+d2+'">'+new Date(d2+'T12:00:00Z').toDateString()+'</option>'}).join('')||'<option value="">No dates</option>';
+    csOnDate(); csFields();
+  });
+}
+function csOnDate(){
+  var day=document.getElementById('cs-date').value; var slots=CS.byDate[day]||[];
+  document.getElementById('cs-slot').innerHTML=slots.map(function(s){var t=new Date(s.starts).toLocaleTimeString('en-US',{timeZone:'America/Santo_Domingo',hour:'numeric',minute:'2-digit'});return '<option value="'+s.id+'">'+(s.label==='clubhouse-day'?'Day':t)+' — '+s.rem+' left</option>'}).join('');
+}
+function csFields(){
+  var svc=document.getElementById('cs-svc').value; var qty=parseInt(document.getElementById('cs-qty').value,10)||1;
+  var defs=CS_FIELDS[svc]||[]; var h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  defs.forEach(function(d){h+='<label>'+d[0].replace('_',' ')+'<br><select class="cs-detail" data-name="'+d[0]+'" style="width:100%">'+d[1].map(function(o){return '<option value="'+(o==='—'?'':o)+'">'+o+'</option>'}).join('')+'</select></label>';});
+  if(svc==='full-experience'){for(var i=1;i<=qty;i++){h+='<label>Main course — guest '+i+'<br><select class="cs-detail" data-name="main_guest_'+i+'" style="width:100%"><option>Meat</option><option>Fish</option><option>Vegetarian</option></select></label>';}}
+  h+='</div><label>Special requests / allergies<br><textarea class="cs-detail" data-name="requests" rows="2" style="width:100%"></textarea></label>';
+  document.getElementById('cs-fields').innerHTML=h;
+}
+function csSubmit(){
+  var res=document.getElementById('cs-result'); res.textContent='Working…';
+  var details={}; document.querySelectorAll('#cs-fields .cs-detail').forEach(function(el){if(el.value)details[el.getAttribute('data-name')]=el.value;});
+  var body={action:'cs_booking',service:document.getElementById('cs-svc').value,slot_id:document.getElementById('cs-slot').value,
+    name:document.getElementById('cs-name').value.trim(),email:document.getElementById('cs-email').value.trim(),
+    phone:document.getElementById('cs-phone').value.trim(),party_size:document.getElementById('cs-qty').value,
+    language:document.getElementById('cs-lang').value,details:details};
+  fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok){res.innerHTML='<span style="color:#b00">'+(d.error||'Error')+'</span>';return;}
+    if(d.payment==='stripe')res.innerHTML='<div style="color:#2a7"><strong>Booked + payment link emailed to customer.</strong></div><p>Payment link: <a href="'+d.payment_url+'" target="_blank">'+d.payment_url+'</a></p>';
+    else if(d.payment==='none')res.innerHTML='<div style="color:#2a7"><strong>Club House reservation confirmed</strong> (pay on-site). Confirmation emailed.</div>';
+    else res.innerHTML='<div style="color:#2a7"><strong>Reservation created.</strong> No Stripe key set — sent customer an "arrange payment" email. Add Stripe to email a payment link.</div>';
+    csOnSvc();
+  }).catch(function(){res.textContent='Network error.';});
 }
 function loadBookings(){
   fetch('/api/admin?view=bookings',{headers:hdr()}).then(function(r){return r.json()}).then(function(d){

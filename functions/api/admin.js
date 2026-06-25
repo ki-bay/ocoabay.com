@@ -110,6 +110,60 @@ export async function onRequestPost(context) {
       await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${body.id}, ${r.state}, ${body.state}, 'admin')`;
       return json({ ok: true });
     }
+    if (body.action === "cs_booking") {
+      const { getService, priceBooking, stripeApi } = await import("../_lib/booking.js");
+      const email = (body.email || "").trim(), name = (body.name || "").trim();
+      const lang = body.language === "es" ? "es" : "en";
+      if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Name and valid email required" }, 400);
+      const svc = await getService(sql, body.service);
+      if (!svc) return json({ error: "Unknown service" }, 400);
+      const qty = Math.max(1, parseInt(body.party_size, 10) || 1);
+
+      // atomic reserve
+      const upd = await sql`update availability_slots set booked = booked + ${qty}
+        where id = ${body.slot_id} and service_id = ${svc.id} and status = 'open' and starts_at > now()
+          and booked + held + ${qty} <= capacity returning starts_at`;
+      if (!upd.length) return json({ ok: false, error: "Slot unavailable for that party size" }, 409);
+      const arrival = new Date(upd[0].starts_at).toISOString().slice(0, 10);
+      const price = await priceBooking(sql, svc, qty, []);
+      const payMode = (svc.config && svc.config.payment) || "full";
+
+      let cust = await sql`select id from customers where email = ${email}`;
+      if (!cust.length) cust = await sql`insert into customers (email, name, phone, language) values (${email}, ${name}, ${body.phone || null}, ${lang}) returning id`;
+      const state = payMode === "none" ? "confirmed" : "pending_payment";
+
+      const ins = await sql`insert into reservations
+        (experience, name, email, phone, arrival_date, people, status, customer_id, service_id, slot_id, state,
+         party_size, details, language, subtotal_cents, tax_cents, service_charge_cents, total_cents, source, raw)
+        values (${svc.name_en}, ${name}, ${email}, ${body.phone || null}, ${arrival}, ${qty}, ${state}, ${cust[0].id}, ${svc.id}, ${body.slot_id}, ${state},
+         ${qty}, ${JSON.stringify(body.details || {})}, ${lang}, ${price.subtotal_cents}, ${price.tax_cents}, ${price.service_charge_cents}, ${price.total_cents}, 'cs', ${JSON.stringify({ by: "cs" })})
+        returning id`;
+      const rid = ins[0].id;
+      await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${rid}, null, ${state}, 'cs')`;
+      const elib = await import("../_lib/email.js");
+
+      if (state === "confirmed") { try { await elib.sendBookingEmail(env, { sql, reservationId: rid }); } catch (_) {} return json({ ok: true, reservation_id: rid, state, payment: "none" }); }
+
+      await sql`insert into payments (reservation_id, kind, amount_cents, currency, status, idempotency_key) values (${rid}, 'full', ${price.total_cents}, ${price.currency}, 'pending', ${rid + ":full"})`;
+      if (env.STRIPE_SECRET_KEY) {
+        const sess = await stripeApi(env, "checkout/sessions", {
+          mode: "payment", success_url: "https://ocoabay.com/book/?paid=1", cancel_url: "https://ocoabay.com/book/?cancel=1",
+          customer_email: email,
+          "line_items[0][quantity]": "1",
+          "line_items[0][price_data][currency]": price.currency.toLowerCase(),
+          "line_items[0][price_data][unit_amount]": String(price.total_cents),
+          "line_items[0][price_data][product_data][name]": `${svc.name_en} ×${qty} — ${arrival}`,
+          "payment_intent_data[metadata][reservation_id]": String(rid),
+          "metadata[reservation_id]": String(rid),
+        });
+        if (sess && sess.url) {
+          try { await elib.sendPaymentLink(env, { sql, reservationId: rid, url: sess.url }); } catch (_) {}
+          return json({ ok: true, reservation_id: rid, state, payment: "stripe", payment_url: sess.url, emailed: true });
+        }
+      }
+      try { await elib.sendBookingEmail(env, { sql, reservationId: rid, arrange: true }); } catch (_) {}
+      return json({ ok: true, reservation_id: rid, state, payment: "arrange" });
+    }
     if (body.action === "conv_status") {
       const allowed = ["open", "handoff", "closed"];
       if (!allowed.includes(body.status)) return json({ error: "Bad status" }, 400);
