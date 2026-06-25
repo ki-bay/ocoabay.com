@@ -87,3 +87,77 @@ Implement as a **Rule Parameter** (table of `[threshold, base_tax, marginal_rate
 - A **payslip test workbook** (expected numbers for sample salaries) to validate the config.
 
 *Once Odoo.sh + API key exist, I wire it and run the validation payslips.*
+
+---
+
+## 9. Ready-to-paste Odoo salary-rule code (Python)
+
+Create a Salary Structure "OcoaBay RD" and add these rules (Amount type = **Python Code**).
+Categories: **BASIC, ALW** (allowances), **DED** (deductions), **GROSS, NET, COMP** (employer cost).
+Values come from **Rule Parameters** (§10) so the accountant can update rates without touching code.
+Sign convention: deductions are **negative**.
+
+```python
+# --- BASIC  (code: BASIC, category: BASIC) ---
+result = contract.wage
+
+# --- OT  Overtime (code: OT, category: ALW)  [payslip input: OT_HOURS] ---
+legal  = payslip.rule_parameter('dr_week_legal_hours')          # 44
+hourly = contract.wage / (legal * 4.333)
+ot_h   = inputs.OT_HOURS.amount if 'OT_HOURS' in inputs else 0.0
+result = ot_h * hourly * (1 + payslip.rule_parameter('dr_ot_rate1'))   # +35%
+
+# --- GROSS  (code: GROSS, category: GROSS) ---
+result = categories.BASIC + categories.ALW
+
+# --- SFS  Health, employee (code: SFS, category: DED) ---
+cap   = payslip.rule_parameter('dr_sfs_cap')
+result = - min(categories.GROSS, cap) * payslip.rule_parameter('dr_sfs_rate')   # 3.04%
+
+# --- AFP  Pension, employee (code: AFP, category: DED) ---
+cap   = payslip.rule_parameter('dr_afp_cap')
+result = - min(categories.GROSS, cap) * payslip.rule_parameter('dr_afp_rate')   # 2.87%
+
+# --- ISR  Income tax retención (code: ISR, category: DED) ---
+# taxable = GROSS - employee TSS (SFS, AFP are negative)
+annual = (categories.GROSS + SFS + AFP) * 12.0
+tax = 0.0
+for floor, base, rate in reversed(payslip.rule_parameter('dr_isr_brackets')):
+    if annual > floor:
+        tax = base + (annual - floor) * rate
+        break
+result = - tax / 12.0
+
+# --- NET  (code: NET, category: NET) ---
+result = categories.GROSS + categories.DED
+
+# --- Employer cost lines (category: COMP, not deducted from employee) ---
+# SFS_ER:   result = min(categories.GROSS, payslip.rule_parameter('dr_sfs_cap')) * payslip.rule_parameter('dr_sfs_er_rate')   # 7.09%
+# AFP_ER:   result = min(categories.GROSS, payslip.rule_parameter('dr_afp_cap')) * payslip.rule_parameter('dr_afp_er_rate')   # 7.10%
+# SRL_ER:   result = min(categories.GROSS, payslip.rule_parameter('dr_afp_cap')) * payslip.rule_parameter('dr_srl_er_rate')   # ~1.10%
+# INFOTEP:  result = categories.GROSS * payslip.rule_parameter('dr_infotep_rate')                                            # 1.00%
+```
+
+```python
+# --- REGALIA  13th month (separate December run, code: REGALIA, category: ALW, ISR-exempt to legal limit) ---
+# Sum of ordinary salary earned Jan–Nov / 12. Implement via a December input or a dedicated structure.
+result = inputs.YTD_ORDINARY.amount / 12.0 if 'YTD_ORDINARY' in inputs else 0.0
+```
+
+## 10. Rule Parameters to create (seed — **confirm with accountant/TSS/DGII**)
+| Code | Value | Meaning |
+|---|---|---|
+| `dr_week_legal_hours` | 44 | legal weekly hours |
+| `dr_ot_rate1` | 0.35 | overtime premium (≤68h/wk) |
+| `dr_sfs_rate` / `dr_afp_rate` | 0.0304 / 0.0287 | employee health / pension |
+| `dr_sfs_er_rate` / `dr_afp_er_rate` | 0.0709 / 0.0710 | employer health / pension |
+| `dr_srl_er_rate` / `dr_infotep_rate` | 0.0110 / 0.0100 | risk / INFOTEP |
+| `dr_sfs_cap` / `dr_afp_cap` | (10× / 20× min wage) | TSS contribution caps — **confirm** |
+| `dr_isr_brackets` | `[[0,0,0],[416220,0,0.15],[624329,31216.35,0.20],[867123,79775.15,0.25]]` | annual ISR table — **confirm DGII** |
+
+## 11. Validation workbook (test before going live)
+Run payslips for these and match to a manual calc:
+1. Salary RD$30,000/mo, no OT → ISR exempt; check TSS = ~5.91%.
+2. Salary RD$80,000/mo → pays ISR (verify bracket math); TSS caps if applicable.
+3. Salary RD$25,000 + 10h overtime → verify OT line + net.
+4. December run → regalía line, ISR-exempt.
