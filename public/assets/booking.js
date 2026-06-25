@@ -18,7 +18,8 @@
       day: "Reserve this day", sending: "Processing…", thanks: "Thank you,", confirmed: "Your reservation is confirmed. A confirmation has been emailed to you.",
       arrange: "We've received your reservation and will contact you to arrange payment.",
       err_contact: "Please enter your name and a valid email.", err_net: "Network error. Please try again.",
-      no_dates: "No dates currently available.", policy: "Reschedule allowed up to 72h before. No refunds.", per_person: "per person" },
+      no_dates: "No dates currently available.", policy: "Reschedule allowed up to 72h before. No refunds.", per_person: "per person",
+      pay_label: "Payment", deposit: "25% deposit", full: "Pay in full", pay_now: "Pay now", balance: "Balance on arrival", cur: "Currency" },
     es: { pick_date: "Elige una fecha", pick_session: "Elige un horario", guests: "Huéspedes", details: "Tus datos",
       name: "Nombre completo", email: "Correo electrónico", phone: "Teléfono (opcional)", reserve: "Reservar", pay: "Pagar y confirmar",
       subtotal: "Subtotal", itbis: "ITBIS (18%)", propina: "Propina Legal (10%)", total: "Total", loading: "Cargando disponibilidad…",
@@ -26,8 +27,16 @@
       day: "Reservar este día", sending: "Procesando…", thanks: "¡Gracias,", confirmed: "Tu reserva está confirmada. Te enviamos un correo de confirmación.",
       arrange: "Hemos recibido tu reserva y te contactaremos para coordinar el pago.",
       err_contact: "Ingresa tu nombre y un correo válido.", err_net: "Error de red. Intenta de nuevo.",
-      no_dates: "No hay fechas disponibles por ahora.", policy: "Reprogramación hasta 72 h antes. No hay reembolsos.", per_person: "por persona" },
+      no_dates: "No hay fechas disponibles por ahora.", policy: "Reprogramación hasta 72 h antes. No hay reembolsos.", per_person: "por persona",
+      pay_label: "Pago", deposit: "Depósito 25%", full: "Pago completo", pay_now: "Pagar ahora", balance: "Saldo al llegar", cur: "Moneda" },
   }[lang];
+
+  var FX = 60; // USD->DOP, refreshed from /api/fx
+  fetch("/api/fx").then(function (r) { return r.json(); }).then(function (d) { if (d && d.usd_dop > 0) FX = d.usd_dop; }).catch(function () {});
+  function curAmt(usdCents, currency) {
+    if (currency === "DOP") return "RD$" + new Intl.NumberFormat("es-DO", { maximumFractionDigits: 0 }).format(Math.round(usdCents / 100 * FX));
+    return money(usdCents);
+  }
 
   var money = function (c) { return new Intl.NumberFormat(lang === "es" ? "es-DO" : "en-US", { style: "currency", currency: "USD" }).format((c || 0) / 100); };
   var dfmt = function (iso, opts) { return new Intl.DateTimeFormat(lang === "es" ? "es-DO" : "en-US", Object.assign({ timeZone: "America/Santo_Domingo" }, opts)).format(new Date(iso)); };
@@ -81,7 +90,7 @@
     return det;
   }
 
-  var S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null };
+  var S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null, payMode: "full", currency: "USD" };
 
   // ---- service catalogue for the picker (shown when no service is preset) ----
   var IMG = "/wp-content/uploads/2025/06/";
@@ -96,7 +105,7 @@
 
   function loadService(svc) {
     service = svc;
-    S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null };
+    S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null, payMode: "full", currency: "USD" };
     root.innerHTML = '<div class="ob-card"><p class="ob-sub">' + T.loading + "</p></div>";
     fetch("/api/booking/availability?service=" + encodeURIComponent(svc))
       .then(function (r) { return r.json(); })
@@ -203,6 +212,21 @@
           '<div class="r"><span>' + T.itbis + "</span><span>" + money(pr.itbis) + "</span></div>" +
           '<div class="r"><span>' + T.propina + "</span><span>" + money(pr.prop) + "</span></div>" +
           '<div class="r t"><span>' + T.total + "</span><span>" + money(pr.total) + "</span></div></div>";
+
+        // payment options: 25% deposit vs full, and USD vs DOP
+        var charge = S.payMode === "deposit" ? Math.round(pr.total * 0.25) : pr.total;
+        var bal = pr.total - charge;
+        h += '<div class="ob-step"><span class="ob-label">' + T.pay_label + '</span>' +
+          '<div class="ob-pay-opts">' +
+            '<button type="button" class="ob-opt' + (S.payMode === "deposit" ? " sel" : "") + '" data-mode="deposit">' + T.deposit + '<small>' + curAmt(Math.round(pr.total * 0.25), S.currency) + '</small></button>' +
+            '<button type="button" class="ob-opt' + (S.payMode === "full" ? " sel" : "") + '" data-mode="full">' + T.full + '<small>' + curAmt(pr.total, S.currency) + '</small></button>' +
+          '</div>' +
+          '<div class="ob-pay-opts"><span class="ob-cur-label">' + T.cur + ':</span>' +
+            '<button type="button" class="ob-opt sm' + (S.currency === "USD" ? " sel" : "") + '" data-cur="USD">USD</button>' +
+            '<button type="button" class="ob-opt sm' + (S.currency === "DOP" ? " sel" : "") + '" data-cur="DOP">DOP</button>' +
+          '</div>' +
+          '<div class="ob-paynow">' + T.pay_now + ': <strong>' + curAmt(charge, S.currency) + " " + S.currency + "</strong>" +
+            (bal > 0 ? '<span class="ob-bal">' + T.balance + ": " + curAmt(bal, S.currency) + " " + S.currency + "</span>" : "") + "</div></div>";
       } else {
         h += '<p class="ob-note">' + T.by_consumption + "</p>";
       }
@@ -252,6 +276,8 @@
     if (go) go.onclick = submit;
     var back = document.getElementById("ob-back");
     if (back) back.onclick = function () { renderPicker(); };
+    root.querySelectorAll("[data-mode]").forEach(function (el) { el.onclick = function () { S.payMode = el.getAttribute("data-mode"); render(); }; });
+    root.querySelectorAll("[data-cur]").forEach(function (el) { el.onclick = function () { S.currency = el.getAttribute("data-cur"); render(); }; });
   }
 
   function loadStripe() {
@@ -282,7 +308,7 @@
       .then(function (h) {
         if (!h.ok) throw new Error(h.error || T.err_net);
         return fetch("/api/booking/confirm", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ hold_id: h.hold_id, name: name, email: email, phone: phone, language: lang, details: details }) }).then(function (r) { return r.json(); });
+          body: JSON.stringify({ hold_id: h.hold_id, name: name, email: email, phone: phone, language: lang, details: details, pay_mode: S.payMode, currency: S.currency }) }).then(function (r) { return r.json(); });
       })
       .then(function (c) {
         if (!c.ok) throw new Error(c.error || T.err_net);

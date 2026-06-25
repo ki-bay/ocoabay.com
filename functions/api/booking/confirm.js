@@ -28,7 +28,19 @@ export async function onRequestPost({ request, env }) {
 
     const svc = { id: H.service_id, base_price_cents: H.base_price_cents, config: H.config || {} };
     const price = await priceBooking(sql, svc, H.qty, (b.details && b.details.options) || []);
-    const payMode = svc.config.payment || "full";
+    const svcPay = svc.config.payment || "full"; // 'none' (club house) | 'full' (prepaid)
+
+    // Customer payment choices: amount (25% deposit or full) + currency (USD or DOP).
+    const depositMode = b.pay_mode === "deposit" ? "deposit" : "full";
+    const chargeUsd = svcPay === "none" ? 0 : (depositMode === "deposit" ? Math.round(price.total_cents * 0.25) : price.total_cents);
+    const balanceUsd = svcPay === "none" ? 0 : (price.total_cents - chargeUsd);
+    const payCurrency = b.currency === "DOP" ? "DOP" : "USD";
+    let payAmount = chargeUsd, fxRate = 1;
+    if (svcPay !== "none" && payCurrency === "DOP") {
+      const fr = await sql`select rate from fx_rates where pair = 'USD_DOP'`;
+      fxRate = fr.length ? Number(fr[0].rate) : 60;
+      payAmount = Math.round(chargeUsd * fxRate); // DOP centavos
+    }
 
     // customer upsert (customers.email is the natural key)
     let cust = await sql`select id from customers where email = ${email}`;
@@ -41,17 +53,18 @@ export async function onRequestPost({ request, env }) {
     if (H.club_slot_id) await sql`update availability_slots set booked = booked + ${H.qty}, held = greatest(0, held - ${H.qty}) where id = ${H.club_slot_id}`;
     await sql`delete from holds where id = ${H.hold_id}`;
 
-    const state = payMode === "none" ? "confirmed" : "pending_payment";
+    const state = svcPay === "none" ? "confirmed" : "pending_payment";
     const arrival = new Date(H.starts_at).toISOString().slice(0, 10);
     const details = b.details || {};
 
     const ins = await sql`insert into reservations
       (experience, name, email, phone, arrival_date, people, message, status,
        customer_id, service_id, slot_id, club_slot_id, state, party_size, details, language,
-       subtotal_cents, tax_cents, service_charge_cents, total_cents, deposit_cents, source, raw)
+       subtotal_cents, tax_cents, service_charge_cents, total_cents, deposit_cents, balance_cents, pay_currency, pay_mode, source, raw)
       values (${H.name_en}, ${name}, ${email}, ${b.phone || null}, ${arrival}, ${H.qty}, ${details.message || null}, ${state},
        ${customerId}, ${H.service_id}, ${H.slot_id}, ${H.club_slot_id}, ${state}, ${H.qty}, ${JSON.stringify(details)}, ${lang},
-       ${price.subtotal_cents}, ${price.tax_cents}, ${price.service_charge_cents}, ${price.total_cents}, 0, 'web', ${JSON.stringify(b)})
+       ${price.subtotal_cents}, ${price.tax_cents}, ${price.service_charge_cents}, ${price.total_cents},
+       ${chargeUsd}, ${balanceUsd}, ${svcPay === "none" ? "USD" : payCurrency}, ${svcPay === "none" ? null : depositMode}, 'web', ${JSON.stringify(b)})
       returning id`;
     const rid = ins[0].id;
     await logEvent(sql, rid, null, state, "web", { slug: H.slug, qty: H.qty });
@@ -62,26 +75,27 @@ export async function onRequestPost({ request, env }) {
       return json({ ok: true, reservation_id: rid, state, total_cents: price.total_cents, payment: "none" });
     }
 
-    // prepaid — record a payment row, create a Stripe PaymentIntent if keys present
+    // prepaid — record a payment row (in the chosen currency), create a Stripe PaymentIntent if keys present
+    const meta = { reservation_id: rid, state, payment: null, charge_amount: payAmount, currency: payCurrency,
+      pay_mode: depositMode, balance_cents: balanceUsd, total_cents: price.total_cents };
     await sql`insert into payments (reservation_id, kind, amount_cents, currency, status, idempotency_key)
-      values (${rid}, 'full', ${price.total_cents}, ${price.currency}, 'pending', ${rid + ":full"})`;
+      values (${rid}, ${depositMode}, ${payAmount}, ${payCurrency}, 'pending', ${rid + ":" + depositMode})`;
 
     if (env.STRIPE_SECRET_KEY && env.STRIPE_PUBLISHABLE_KEY) {
       const pi = await stripeApi(env, "payment_intents", {
-        amount: String(price.total_cents), currency: price.currency.toLowerCase(),
+        amount: String(payAmount), currency: payCurrency.toLowerCase(),
         "automatic_payment_methods[enabled]": "true",
-        "metadata[reservation_id]": String(rid), "metadata[kind]": "full",
+        "metadata[reservation_id]": String(rid), "metadata[kind]": depositMode,
         ...(email ? { receipt_email: email } : {}),
       });
       if (pi && !pi.error) {
-        await sql`update payments set stripe_payment_intent = ${pi.id} where reservation_id = ${rid} and kind = 'full'`;
-        return json({ ok: true, reservation_id: rid, state, total_cents: price.total_cents,
-          payment: "stripe", client_secret: pi.client_secret, publishable_key: env.STRIPE_PUBLISHABLE_KEY });
+        await sql`update payments set stripe_payment_intent = ${pi.id} where reservation_id = ${rid} and kind = ${depositMode}`;
+        return json({ ...meta, ok: true, payment: "stripe", client_secret: pi.client_secret, publishable_key: env.STRIPE_PUBLISHABLE_KEY });
       }
     }
 
     // no Stripe configured — reservation stands; staff arranges payment (email the request)
     try { const { sendBookingEmail } = await import("../../_lib/email.js"); await sendBookingEmail(env, { sql, reservationId: rid, arrange: true }); } catch (_) {}
-    return json({ ok: true, reservation_id: rid, state, total_cents: price.total_cents, payment: "arrange" });
+    return json({ ...meta, ok: true, payment: "arrange" });
   } catch (e) { return json({ error: e.message }, 500); }
 }

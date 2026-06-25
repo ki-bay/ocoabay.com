@@ -83,4 +83,16 @@
 #ocoa-booking .ob-ok{text-align:center;padding:24px 0}
 #ocoa-booking .ob-ok h3{color:var(--ocoa);font-size:24px;margin:0 0 10px;font-weight:600}
 #ocoa-booking #ob-pay-element{margin:16px 0}
+/* payment options: deposit/full + USD/DOP */
+#ocoa-booking .ob-pay-opts{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+#ocoa-booking .ob-opt{flex:1 1 auto;min-width:130px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px 14px;text-align:center;font-size:14px;color:var(--ink);font-weight:600;transition:.15s;display:flex;flex-direction:column;gap:3px}
+#ocoa-booking .ob-opt small{font-weight:400;color:var(--muted);font-size:13px}
+#ocoa-booking .ob-opt.sm{flex:0 0 auto;min-width:62px;padding:10px 16px}
+#ocoa-booking .ob-opt:hover{border-color:var(--ocoa)}
+#ocoa-booking .ob-opt.sel{background:var(--ocoa);color:#fff;border-color:var(--ocoa)}
+#ocoa-booking .ob-opt.sel small{color:rgba(255,255,255,.85)}
+#ocoa-booking .ob-cur-label{font-size:13px;color:var(--muted)}
+#ocoa-booking .ob-paynow{background:var(--ocoa-soft);border-radius:10px;padding:12px 16px;font-size:15px;color:var(--ink);margin-bottom:4px}
+#ocoa-booking .ob-paynow strong{color:var(--ocoa);font-size:17px}
+#ocoa-booking .ob-bal{display:block;font-size:13px;color:var(--muted);margin-top:3px;font-weight:400}
 #ocoa-booking .ob-policy{font-size:12px;color:var(--muted);border-top:1px solid var(--line);margin-top:18px;padding-top:12px}
