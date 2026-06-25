@@ -55,10 +55,21 @@ const FULL_EXPERIENCE_MENU = {
        "<strong>Postre:</strong> Postre orgánico del día"],
 };
 
+const MAP_URL = "https://maps.google.com/maps?q=Bah%C3%ADa%20de%20Ocoa%2C%20Carretera%20Hatillo%20Palmar%20de%20Ocoa%2C%20Azua%2071003%2C%20Rep%C3%BAblica%20Dominicana";
+function directionsBlock(es) {
+  return `<div style="background:#f6ecec;border-radius:10px;padding:16px 18px;margin:16px 0">
+    <strong style="color:#74181B">${es ? "Cómo llegar" : "Getting here"}</strong>
+    <p style="margin:8px 0 0">Bahía de Ocoa, Carretera Hatillo Palmar de Ocoa, Azua 71003, ${es ? "República Dominicana" : "Dominican Republic"}<br>
+    <a href="${MAP_URL}">${es ? "Abrir en Google Maps" : "Open in Google Maps"}</a> &middot; +1 (849) 876-6563</p>
+    <p style="margin:8px 0 0;font-size:13px;color:#777">${es ? "Llega 10 minutos antes. Abierto de jueves a domingo." : "Please arrive 10 minutes early. Open Thursday–Sunday."}</p></div>`;
+}
+
 // Booking confirmation / request email. Loads the reservation + service + slot and renders EN/ES.
+// For deposit bookings it includes the paid/balance breakdown + a "complete payment" link.
 export async function sendBookingEmail(env, { sql, reservationId, arrange = false }) {
-  const rows = await sql`select r.email, r.name, r.language, r.party_size, r.state,
+  const rows = await sql`select r.id, r.email, r.name, r.language, r.party_size, r.state,
     r.subtotal_cents, r.tax_cents, r.service_charge_cents, r.total_cents,
+    r.deposit_cents, r.balance_cents, r.pay_currency, r.pay_mode,
     s.slug, s.name_en, s.name_es, s.config, a.starts_at
     from reservations r join services s on s.id = r.service_id join availability_slots a on a.id = r.slot_id
     where r.id = ${reservationId}`;
@@ -109,6 +120,23 @@ export async function sendBookingEmail(env, { sql, reservationId, arrange = fals
     </table>`;
   }
 
+  // Paid / balance breakdown (deposit bookings) + complete-payment link
+  if (r.pay_mode && r.total_cents > 0) {
+    const paidLabel = r.pay_mode === "deposit" ? (es ? "Pagado (depósito 25%)" : "Paid (25% deposit)") : (es ? "Pagado (completo)" : "Paid (in full)");
+    const curNote = r.pay_currency === "DOP" ? (es ? " (en DOP)" : " (in DOP)") : "";
+    body += `<table style="width:100%;border-collapse:collapse;margin-top:6px">
+      <tr><td>${paidLabel}${curNote}</td><td align="right">${money(r.deposit_cents, cur)}</td></tr>
+      ${r.balance_cents > 0 ? `<tr><td><strong>${es ? "Saldo pendiente" : "Balance due"}</strong></td><td align="right"><strong>${money(r.balance_cents, cur)}</strong></td></tr>` : ""}
+    </table>`;
+    if (r.balance_cents > 0) {
+      const payUrl = `https://ocoabay.com/pay/?reservation=${r.id}&lang=${r.language}`;
+      body += `<p style="margin-top:12px">${es ? "Por favor completa el 75% restante <strong>antes de tu llegada</strong>:" : "Please complete the remaining 75% <strong>before your arrival</strong>:"}</p>
+        <p style="text-align:center;margin:16px 0"><a href="${payUrl}" style="background:#74181B;color:#fff;padding:13px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600">${es ? "Completar pago" : "Complete payment"}</a></p>`;
+    }
+  }
+
+  body += directionsBlock(es);
+
   if (cfg.menu_in_email) {
     const items = (es ? FULL_EXPERIENCE_MENU.es : FULL_EXPERIENCE_MENU.en).map((i) => `<li>${i}</li>`).join("");
     body += `<p style="margin-top:14px">${t.menu}</p><ul>${items}</ul>`;
@@ -118,6 +146,23 @@ export async function sendBookingEmail(env, { sql, reservationId, arrange = fals
   body += `<p style="font-size:13px;color:#777;margin-top:14px">${t.policy}</p>`;
 
   return sendEmail(env, { to: r.email, subject: t.subj, html: layout(t.hi, body) });
+}
+
+// Sent when the remaining balance is paid in full.
+export async function sendBalancePaidEmail(env, { sql, reservationId }) {
+  const rows = await sql`select r.email, r.name, r.language, r.party_size, a.starts_at, s.name_en, s.name_es
+    from reservations r join services s on s.id = r.service_id join availability_slots a on a.id = r.slot_id where r.id = ${reservationId}`;
+  if (!rows.length) return;
+  const r = rows[0]; const es = r.language === "es";
+  const svcName = es ? r.name_es : r.name_en;
+  const when = new Intl.DateTimeFormat(es ? "es-DO" : "en-US", { dateStyle: "full", timeStyle: "short", timeZone: "America/Santo_Domingo" }).format(new Date(r.starts_at));
+  const body = `<p>${es ? "Hemos recibido tu pago final. ¡Tu reserva está totalmente pagada!" : "We've received your final payment. Your reservation is fully paid!"}</p>
+    <table style="width:100%;border-collapse:collapse">
+      <tr><td>${es ? "Experiencia" : "Experience"}</td><td align="right"><strong>${svcName}</strong></td></tr>
+      <tr><td>${es ? "Fecha y hora" : "Date & time"}</td><td align="right">${when}</td></tr>
+      <tr><td>${es ? "Huéspedes" : "Guests"}</td><td align="right">${r.party_size}</td></tr>
+    </table>${directionsBlock(es)}`;
+  return sendEmail(env, { to: r.email, subject: es ? "Pago completado — OcoaBay" : "Payment complete — OcoaBay", html: layout(es ? `¡Gracias, ${r.name}!` : `Thank you, ${r.name}!`, body) });
 }
 
 async function loadResv(sql, id) {

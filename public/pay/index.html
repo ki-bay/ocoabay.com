@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Complete your payment — OcoaBay</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/wp-content/uploads/2025/06/fav.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/booking.css">
+<style>
+  body{margin:0;background:#faf7f5;color:#212121;font-family:'Barlow',-apple-system,Segoe UI,Roboto,sans-serif}
+  .pay-top{background:#74181B;color:#fff;padding:16px 22px;font-size:20px;letter-spacing:.04em}
+  .pay-wrap{max-width:520px;margin:34px auto;padding:0 18px}
+  .pay-card{background:#fff;border:1px solid #ece2e2;border-radius:16px;padding:28px;box-shadow:0 6px 24px rgba(116,24,27,.06)}
+  .pay-card h1{font-size:24px;font-weight:700;margin:0 0 6px}
+  .pay-sub{color:#7a7068;margin:0 0 18px}
+  .pay-amt{background:#f6ecec;border-radius:10px;padding:16px 18px;margin:14px 0;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .pay-amt strong{color:#74181B;font-size:22px}
+  #pay-element{margin:16px 0}
+  .pay-btn{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;background:#74181B;color:#fff;border:0;font-size:15px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+  .pay-btn:hover{background:#5a1316}.pay-btn:disabled{opacity:.55}
+  .pay-msg{color:#a01a1f;font-size:14px;min-height:18px;margin:8px 0}
+  .pay-ok{text-align:center;padding:20px 0}.pay-ok h1{color:#74181B}
+  .pay-note{font-size:12px;color:#7a7068;border-top:1px solid #ece2e2;margin-top:16px;padding-top:12px}
+</style>
+</head>
+<body>
+<div class="pay-top">OcoaBay</div>
+<div class="pay-wrap"><div class="pay-card" id="root"><p class="pay-sub">Loading…</p></div></div>
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+(function(){
+  var P=new URLSearchParams(location.search);
+  var rid=P.get("reservation");
+  var lang=(P.get("lang")||document.documentElement.lang||"en").slice(0,2)==="es"?"es":"en";
+  var root=document.getElementById("root");
+  var T=lang==="es"
+    ? {title:"Completa tu pago",sub:"Paga el saldo restante antes de tu llegada.",balance:"Saldo a pagar",exp:"Experiencia",when:"Fecha",pay:"Pagar ahora",sending:"Procesando…",
+       done:"¡Pago completado!",donesub:"Tu reserva está totalmente pagada. ¡Te esperamos!",already:"Esta reserva ya está pagada en su totalidad.",
+       arrange:"Para completar el pago, contáctanos: info@ocoabay.com · +1 (849) 876-6563.",err:"Error. Intenta de nuevo.",noid:"Reserva no especificada."}
+    : {title:"Complete your payment",sub:"Pay the remaining balance before your arrival.",balance:"Balance due",exp:"Experience",when:"Date",pay:"Pay now",sending:"Processing…",
+       done:"Payment complete!",donesub:"Your reservation is fully paid. See you soon!",already:"This reservation is already paid in full.",
+       arrange:"To complete payment, contact us: info@ocoabay.com · +1 (849) 876-6563.",err:"Error. Please try again.",noid:"No reservation specified."};
+  var money=function(a,c){return c==="DOP"?"RD$"+new Intl.NumberFormat("es-DO",{maximumFractionDigits:0}).format(Math.round(a/100)):new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(a/100);};
+  if(P.get("redirect_status")==="succeeded"){ root.innerHTML='<div class="pay-ok"><h1>'+T.done+'</h1><p>'+T.donesub+'</p></div>'; return; }
+  if(!rid){ root.innerHTML='<p class="pay-msg">'+T.noid+'</p>'; return; }
+
+  fetch("/api/booking/balance?reservation_id="+encodeURIComponent(rid)).then(function(r){return r.json();}).then(function(d){
+    if(d.error){ root.innerHTML='<p class="pay-msg">'+d.error+'</p>'; return; }
+    if(d.paid){ root.innerHTML='<div class="pay-ok"><h1>'+T.done+'</h1><p>'+T.already+'</p></div>'; return; }
+    var when=new Date(d.starts_at).toLocaleString(lang==="es"?"es-DO":"en-US",{timeZone:"America/Santo_Domingo",dateStyle:"full",timeStyle:"short"});
+    var head='<h1>'+T.title+'</h1><p class="pay-sub">'+T.sub+'</p>'+
+      '<div class="pay-amt"><span>'+T.exp+': <strong style="color:#212121;font-size:15px">'+d.service+'</strong><br><small style="color:#7a7068">'+when+'</small></span></div>'+
+      '<div class="pay-amt"><span>'+T.balance+'</span><strong>'+money(d.amount,d.currency)+' '+d.currency+'</strong></div>';
+    if(!d.enabled){ root.innerHTML=head+'<p class="pay-note">'+T.arrange+'</p>'; return; }
+    root.innerHTML=head+'<div id="pay-element"></div><div class="pay-msg" id="pay-msg"></div><button class="pay-btn" id="pay-go">'+T.pay+'</button>';
+    var stripe=Stripe(d.publishable_key), elements=stripe.elements({clientSecret:d.client_secret});
+    elements.create("payment").mount("#pay-element");
+    document.getElementById("pay-go").onclick=function(){
+      var btn=this,msg=document.getElementById("pay-msg"); btn.disabled=true; btn.textContent=T.sending; msg.textContent="";
+      stripe.confirmPayment({elements:elements,confirmParams:{return_url:location.href.split("#")[0]}}).then(function(res){
+        if(res&&res.error){ msg.textContent=res.error.message||T.err; btn.disabled=false; btn.textContent=T.pay; }
+      });
+    };
+  }).catch(function(){ root.innerHTML='<p class="pay-msg">'+T.err+'</p>'; });
+})();
+</script>
+</body>
+</html>

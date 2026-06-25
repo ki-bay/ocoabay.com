@@ -24,9 +24,19 @@ export async function onRequestPost(context) {
 
       // ----- Booking (reservation) payment -----
       if (meta.reservation_id) {
+        const kind = meta.kind || "full";
+        if (kind === "balance") {
+          // remaining 75% paid -> fully settled
+          await sql`update payments set status = 'paid', paid_at = now() where reservation_id = ${meta.reservation_id} and kind = 'balance'`;
+          await sql`update reservations set balance_cents = 0 where id = ${meta.reservation_id}`;
+          try { const { sendBalancePaidEmail } = await import("../_lib/email.js"); await sendBalancePaidEmail(env, { sql, reservationId: meta.reservation_id }); } catch (_) {}
+          try { await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${meta.reservation_id}, 'balance_due', 'paid_in_full', 'stripe')`; } catch (_) {}
+          return new Response("ok");
+        }
+        // deposit or full -> confirm; send booking email (includes pay-balance link if a deposit)
         const upd = await sql`update reservations set state = 'confirmed', status = 'confirmed'
           where id = ${meta.reservation_id} and state = 'pending_payment' returning id`;
-        await sql`update payments set status = 'paid', paid_at = now() where reservation_id = ${meta.reservation_id} and kind = 'full'`;
+        await sql`update payments set status = 'paid', paid_at = now() where reservation_id = ${meta.reservation_id} and kind = ${kind}`;
         if (upd.length) {
           try { const { sendBookingEmail } = await import("../_lib/email.js"); await sendBookingEmail(env, { sql, reservationId: meta.reservation_id }); } catch (_) {}
           try { await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${meta.reservation_id}, 'pending_payment', 'confirmed', 'stripe')`; } catch (_) {}

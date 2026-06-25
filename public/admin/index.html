@@ -38,7 +38,7 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
       <table id="resv"><thead><tr><th>Date</th><th>Experience</th><th>Guest</th><th>Arrival</th><th>People</th><th>Requests</th><th>Status</th></tr></thead><tbody></tbody></table>
     </div>
     <div id="view-bookings" style="display:none">
-      <table id="bookings"><thead><tr><th>Booked</th><th>Service</th><th>Guest</th><th>When</th><th>People</th><th>Total</th><th>State</th></tr></thead><tbody></tbody></table>
+      <table id="bookings"><thead><tr><th>Booked</th><th>Service</th><th>Guest</th><th>When</th><th>People</th><th>Total</th><th>Payment</th><th>State</th></tr></thead><tbody></tbody></table>
     </div>
     <div id="view-avail" style="display:none">
       <div style="margin-bottom:12px"><label>Service: <select id="avail-svc" onchange="loadAvail()"></select></label></div>
@@ -225,11 +225,15 @@ function loadBookings(){
     tb.innerHTML=(d.bookings||[]).map(function(b){
       var opts=d.states.map(function(s){return '<option '+(s===b.state?'selected':'')+'>'+s+'</option>'}).join('');
       var when=b.starts_at?new Date(b.starts_at).toLocaleString('en-US',{timeZone:'America/Santo_Domingo',dateStyle:'medium',timeStyle:'short'}):'-';
+      var pay;
+      if(!b.pay_mode){ pay='<small style="color:#8a7a6f">on-site</small>'; }
+      else if(b.balance_cents>0){ pay=(b.pay_mode==='deposit'?'Deposit ':'')+money(b.deposit_cents,'USD')+'<br><small style="color:#a01a1f">bal '+money(b.balance_cents,'USD')+(b.pay_currency==='DOP'?' (DOP)':'')+'</small>'; }
+      else { pay='<span style="color:#1a7a3c">Paid '+money(b.deposit_cents||b.total_cents,'USD')+'</span>'; }
       return '<tr><td>'+new Date(b.created_at).toLocaleDateString()+'</td><td>'+(b.service||'')+'</td><td>'+(b.name||'')+
         '<br><small>'+b.email+(b.phone?' · '+b.phone:'')+'</small></td><td>'+when+'</td><td>'+(b.party_size||'-')+
-        '</td><td>'+money(b.total_cents,b.currency)+'</td>'+
+        '</td><td>'+money(b.total_cents,'USD')+'</td><td>'+pay+'</td>'+
         '<td><select onchange="setBookingState(\''+b.id+'\',this.value)">'+opts+'</select></td></tr>';
-    }).join('')||'<tr><td colspan=7>No bookings yet.</td></tr>';
+    }).join('')||'<tr><td colspan=8>No bookings yet.</td></tr>';
   });
 }
 function setBookingState(id,state){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'booking_state',id:id,state:state})})}

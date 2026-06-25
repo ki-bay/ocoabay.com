@@ -25,7 +25,8 @@ export async function onRequestGet(context) {
     }
     if (view === "bookings") {
       const bookings = await sql`select r.id, r.created_at, r.state, r.email, r.name, r.phone,
-        r.party_size, r.total_cents, r.currency, s.name_en service, s.slug, a.starts_at, a.label
+        r.party_size, r.total_cents, r.deposit_cents, r.balance_cents, r.pay_mode, r.pay_currency,
+        s.name_en service, s.slug, a.starts_at, a.label
         from reservations r
         left join services s on s.id = r.service_id
         left join availability_slots a on a.id = r.slot_id

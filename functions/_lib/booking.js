@@ -57,6 +57,12 @@ export async function clubhouseSlotForDate(sql, dateStr) {
   return r[0] || null;
 }
 
+// Current USD->DOP rate (from fx_rates, fallback 60).
+export async function usdDop(sql) {
+  const r = await sql`select rate from fx_rates where pair = 'USD_DOP'`;
+  return r.length ? Number(r[0].rate) : 60;
+}
+
 export function getCookie(request, name) {
   const h = request.headers.get("Cookie") || "";
   const m = h.match(new RegExp("(?:^|; )" + name + "=([^;]+)"));
