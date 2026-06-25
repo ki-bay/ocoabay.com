@@ -75,9 +75,11 @@
     "Full OcoaBay Experience": "full-experience",
     "OcoaBay Club House": "club-house",
   };
-  if (BOOKABLE[preset]) {
+  // Bookable experience -> that service's booking widget. Generic Reservation page
+  // (empty data-experience) -> the booking widget in service-picker mode.
+  if (BOOKABLE[preset] || preset === "") {
     root.id = "ocoa-booking";
-    root.setAttribute("data-service", BOOKABLE[preset]);
+    root.setAttribute("data-service", BOOKABLE[preset] || "");
     root.setAttribute("data-lang", lang);
     root.innerHTML = "";
     var css = document.createElement("link"); css.rel = "stylesheet"; css.href = "/assets/booking.css"; document.head.appendChild(css);

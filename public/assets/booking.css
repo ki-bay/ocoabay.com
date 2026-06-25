@@ -33,3 +33,10 @@
 .ob-ok h3{color:var(--ocoa);font-size:24px;margin:0 0 10px;font-weight:400}
 #ob-pay-element{margin:16px 0}
 .ob-policy{font-size:12px;color:var(--muted);border-top:1px solid #efe7e0;margin-top:18px;padding-top:12px}
+.ob-picker{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.ob-pick{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid #d8cabd;background:#fff;border-radius:12px;padding:16px 18px;cursor:pointer;font-family:inherit;transition:.15s}
+.ob-pick:hover{border-color:var(--ocoa);box-shadow:0 4px 16px rgba(80,40,20,.08)}
+.ob-pick strong{font-size:18px;color:var(--ink)}
+.ob-pick-d{font-size:14px;color:var(--muted)}
+.ob-pick-p{font-size:15px;color:var(--ocoa);margin-top:4px}
+.ob-back-link{background:none;border:0;color:var(--ocoa);cursor:pointer;font-size:14px;padding:0;margin-bottom:8px;font-family:inherit}

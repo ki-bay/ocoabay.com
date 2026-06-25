@@ -6,7 +6,8 @@
   var root = document.getElementById("ocoa-booking");
   if (!root) return;
   var P = new URLSearchParams(location.search);
-  var service = P.get("service") || root.getAttribute("data-service") || "wine-tour";
+  var service = P.get("service") || root.getAttribute("data-service") || "";  // empty -> service picker
+  var allowBack = !(P.get("service") || root.getAttribute("data-service"));    // came in via the picker
   var lang = (P.get("lang") || root.getAttribute("data-lang") || document.documentElement.lang || "en").slice(0, 2) === "es" ? "es" : "en";
 
   var T = {
@@ -82,22 +83,48 @@
 
   var S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null };
 
-  root.innerHTML = '<div class="ob-card"><p class="ob-sub">' + T.loading + "</p></div>";
+  // ---- service catalogue for the picker (shown when no service is preset) ----
+  var CATALOG = [
+    { slug: "wine-tour", en: "Wine Tour Experience", es: "Experiencia Tour de Vinos", price: 6500,
+      den: "90-min guided tasting + electric-car vineyard & bodega tour.", des: "Cata guiada de 90 min + recorrido en carro eléctrico por viñedos y bodega." },
+    { slug: "full-experience", en: "Full OcoaBay Experience", es: "Experiencia Completa OcoaBay", price: 14500,
+      den: "Wine Tour + welcome toast + 3-course wood-oven menu + pool & Club House.", des: "Tour de Vinos + brindis + menú de 3 tiempos al horno de leña + piscina y Club House." },
+    { slug: "club-house", en: "OcoaBay Club House", es: "OcoaBay Club House", price: 0,
+      den: "À-la-carte farm-to-table dining + pool & Club House (pay on-site).", des: "Comida à la carte de la granja a la mesa + piscina y Club House (pago en el lugar)." },
+  ];
 
-  fetch("/api/booking/availability?service=" + encodeURIComponent(service))
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d.error) { root.innerHTML = '<div class="ob-card"><p class="ob-msg">' + d.error + "</p></div>"; return; }
-      S.svc = d.service;
-      (d.slots || []).forEach(function (s) {
-        if (s.remaining <= 0) return;
-        var day = s.starts_at.slice(0, 10);
-        (S.byDate[day] = S.byDate[day] || []).push(s);
-      });
-      S.dates = Object.keys(S.byDate).sort();
-      render();
-    })
-    .catch(function () { root.innerHTML = '<div class="ob-card"><p class="ob-msg">' + T.err_net + "</p></div>"; });
+  function loadService(svc) {
+    service = svc;
+    S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null };
+    root.innerHTML = '<div class="ob-card"><p class="ob-sub">' + T.loading + "</p></div>";
+    fetch("/api/booking/availability?service=" + encodeURIComponent(svc))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) { root.innerHTML = '<div class="ob-card"><p class="ob-msg">' + d.error + "</p></div>"; return; }
+        S.svc = d.service;
+        (d.slots || []).forEach(function (s) { if (s.remaining <= 0) return; var day = s.starts_at.slice(0, 10); (S.byDate[day] = S.byDate[day] || []).push(s); });
+        S.dates = Object.keys(S.byDate).sort();
+        render();
+      })
+      .catch(function () { root.innerHTML = '<div class="ob-card"><p class="ob-msg">' + T.err_net + "</p></div>"; });
+  }
+
+  function renderPicker() {
+    var title = lang === "es" ? "Elige tu experiencia" : "Choose your experience";
+    var taxNote = lang === "es" ? "+ 18% ITBIS + 10% propina legal" : "+ 18% ITBIS + 10% legal tip";
+    var h = '<div class="ob-card"><h2 class="ob-h">' + title + "</h2><div class=\"ob-picker\">";
+    CATALOG.forEach(function (c) {
+      var price = c.price ? (money(c.price) + " " + T.per_person + " <small style=\"color:#8a7a6f\">" + taxNote + "</small>") : (lang === "es" ? "Por consumo" : "By consumption");
+      h += '<button class="ob-pick" data-svc="' + c.slug + '"><strong>' + (lang === "es" ? c.es : c.en) + "</strong>" +
+        '<span class="ob-pick-d">' + (lang === "es" ? c.des : c.den) + "</span>" +
+        '<span class="ob-pick-p">' + price + "</span></button>";
+    });
+    h += "</div></div>";
+    root.innerHTML = h;
+    root.querySelectorAll("[data-svc]").forEach(function (el) { el.onclick = function () { loadService(el.getAttribute("data-svc")); }; });
+  }
+
+  if (service) loadService(service); else renderPicker();
 
   function priced() {
     var base = S.svc.base_price_cents || 0;
@@ -109,7 +136,9 @@
   function render() {
     if (!S.dates.length) { root.innerHTML = '<div class="ob-card"><h2 class="ob-h">' + (lang === "es" ? S.svc.name_es : S.svc.name_en) + '</h2><p class="ob-msg">' + T.no_dates + "</p></div>"; return; }
     var isDay = S.svc.pricing_model === "quote"; // club house
-    var h = '<div class="ob-card"><h2 class="ob-h">' + (lang === "es" ? S.svc.name_es : S.svc.name_en) + "</h2>";
+    var h = '<div class="ob-card">';
+    if (allowBack) h += '<button type="button" class="ob-back-link" id="ob-back">&larr; ' + (lang === "es" ? "Cambiar experiencia" : "Change experience") + "</button>";
+    h += '<h2 class="ob-h">' + (lang === "es" ? S.svc.name_es : S.svc.name_en) + "</h2>";
     if (S.svc.base_price_cents) h += '<p class="ob-sub">' + money(S.svc.base_price_cents) + " " + T.per_person + "</p>";
 
     // dates
@@ -184,6 +213,8 @@
     });
     var go = document.getElementById("ob-go");
     if (go) go.onclick = submit;
+    var back = document.getElementById("ob-back");
+    if (back) back.onclick = function () { renderPicker(); };
   }
 
   function loadStripe() {
