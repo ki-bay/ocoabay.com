@@ -219,6 +219,22 @@ export async function onRequestPost(context) {
       try { await elib.sendBookingEmail(env, { sql, reservationId: rid, arrange: true }); } catch (_) {}
       return json({ ok: true, reservation_id: rid, state, payment: "arrange" });
     }
+    if (body.action === "send_message") {
+      const c = await sql`select id, channel, external_id from conversations where id = ${body.id}`;
+      if (!c.length) return json({ error: "Conversation not found" }, 404);
+      const conv = c[0];
+      const text = (body.text || "").toString().slice(0, 2000).trim();
+      if (!text) return json({ error: "Empty message" }, 400);
+      await sql`insert into messages (conversation_id, role, content) values (${conv.id}, 'agent_human', ${text})`;
+      await sql`update conversations set status = 'handoff', updated_at = now() where id = ${conv.id}`; // a human is now handling it
+      try {
+        if (conv.channel === "whatsapp") { const { waSend } = await import("../_lib/channels.js"); await waSend(env, conv.external_id, text); }
+        else if (conv.channel === "instagram") { const { igSend } = await import("../_lib/channels.js"); await igSend(env, conv.external_id, text); }
+        else if (conv.channel === "email") { const { sendEmail } = await import("../_lib/email.js"); await sendEmail(env, { to: conv.external_id, subject: "OcoaBay", html: text.replace(/\n/g, "<br>") }); }
+        // 'web' chat is shown in the thread; live web reply delivery is Phase 2.
+      } catch (_) {}
+      return json({ ok: true });
+    }
     if (body.action === "conv_status") {
       const allowed = ["open", "handoff", "closed"];
       if (!allowed.includes(body.status)) return json({ error: "Bad status" }, 400);

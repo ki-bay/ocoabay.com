@@ -152,13 +152,24 @@ function loadConvos(){
     }).join('')||'<tr><td colspan=5>No conversations.</td></tr>';
   });
 }
+var CONV_ID=null;
 function viewConvo(id){
+  CONV_ID=id;
   fetch('/api/admin?view=conversation&id='+encodeURIComponent(id),{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
-    document.getElementById('convo-thread').innerHTML=(d.messages||[]).map(function(m){
-      var who=m.role==='user'?'#6b3f2a':'#8a7a6f';
-      return '<p style="margin:6px 0"><strong style="color:'+who+'">'+m.role+':</strong> '+(m.content||'').replace(/</g,'&lt;')+'</p>';
+    var thread=(d.messages||[]).map(function(m){
+      var who=m.role==='user'?'#74181B':(m.role==='agent_human'?'#1a7a3c':'#8a7a6f');
+      var label=m.role==='agent_human'?'you':m.role;
+      return '<p style="margin:6px 0"><strong style="color:'+who+'">'+label+':</strong> '+(m.content||'').replace(/</g,'&lt;')+'</p>';
     }).join('')||'<em>No messages.</em>';
+    document.getElementById('convo-thread').innerHTML=thread+
+      '<div style="margin-top:12px;border-top:1px solid #eee;padding-top:10px">'+
+      '<textarea id="reply-text" rows="2" style="width:100%;box-sizing:border-box" placeholder="Reply to the customer (sends via their channel)…"></textarea>'+
+      '<button onclick="sendReply()" style="margin-top:6px">Send reply</button></div>';
   });
+}
+function sendReply(){
+  var t=(document.getElementById('reply-text').value||'').trim(); if(!t||!CONV_ID)return;
+  fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'send_message',id:CONV_ID,text:t})}).then(function(r){return r.json()}).then(function(){viewConvo(CONV_ID);loadConvos();});
 }
 function closeConvo(id){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'conv_status',id:id,status:'closed'})}).then(function(){loadConvos()})}
 function exportCsv(type){
