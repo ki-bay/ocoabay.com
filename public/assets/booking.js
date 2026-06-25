@@ -111,14 +111,19 @@
   }
 
   function renderPicker() {
-    var title = lang === "es" ? "Elige tu experiencia" : "Choose your experience";
-    var taxNote = lang === "es" ? "+ 18% ITBIS + 10% propina legal" : "+ 18% ITBIS + 10% legal tip";
-    var h = '<div class="ob-card"><h2 class="ob-h">' + title + "</h2><div class=\"ob-picker\">";
+    var es = lang === "es";
+    var title = es ? "Elige tu experiencia" : "Choose your experience";
+    var sub = es ? "Selecciona una experiencia para ver disponibilidad y reservar." : "Select an experience to see availability and book.";
+    var cta = es ? "Reservar" : "Book";
+    var taxNote = es ? "+ 18% ITBIS + 10% propina" : "+ 18% ITBIS + 10% tip";
+    var h = '<div class="ob-card"><h2 class="ob-h">' + title + '</h2><p class="ob-sub">' + sub + '</p><div class="ob-picker">';
     CATALOG.forEach(function (c) {
-      var price = c.price ? (money(c.price) + " " + T.per_person + " <small style=\"color:#8a7a6f\">" + taxNote + "</small>") : (lang === "es" ? "Por consumo" : "By consumption");
-      h += '<button class="ob-pick" data-svc="' + c.slug + '"><strong>' + (lang === "es" ? c.es : c.en) + "</strong>" +
-        '<span class="ob-pick-d">' + (lang === "es" ? c.des : c.den) + "</span>" +
-        '<span class="ob-pick-p">' + price + "</span></button>";
+      var price = c.price
+        ? '<span class="ob-pick-p">' + money(c.price) + ' <span class="pp">' + T.per_person + '</span></span><span class="ob-pick-tax">' + taxNote + "</span>"
+        : '<span class="ob-pick-p">' + (es ? "Por consumo" : "By consumption") + "</span>";
+      h += '<button class="ob-pick" data-svc="' + c.slug + '"><strong>' + (es ? c.es : c.en) + "</strong>" +
+        '<span class="ob-pick-d">' + (es ? c.des : c.den) + "</span>" + price +
+        '<span class="ob-pick-cta">' + cta + " &rarr;</span></button>";
     });
     h += "</div></div>";
     root.innerHTML = h;
