@@ -11,6 +11,6 @@ TARGET_BASE = "https://ocoabay-clone.pages.dev"
 #  every 30 min : cs-digest
 #  hourly       : reminders + abandoned-cart
 #  daily 06:30  : slot top-up
-#  daily 11:00 UTC (07:00 DR) : balance-due report to CS
+#  daily 06:30 UTC : slot top-up + FX + balance-due + ops-report
 [triggers]
-crons = ["*/15 * * * *", "*/30 * * * *", "0 * * * *", "30 6 * * *", "0 11 * * *"]
+crons = ["*/15 * * * *", "*/30 * * * *", "0 * * * *", "30 6 * * *"]

@@ -14,8 +14,7 @@ export default {
     if (c === "*/15 * * * *") jobs.push(hit("/api/cron/holds-sweeper"), hit("/api/cron/attendance-replay"));
     else if (c === "*/30 * * * *") jobs.push(hit("/api/cron/cs-digest"));
     else if (c === "0 * * * *") jobs.push(hit("/api/cron/reminders"), hit("/api/cron/abandoned"), hit("/api/cron/odoo-sync"));
-    else if (c === "30 6 * * *") jobs.push(hit("/api/cron/generate-slots"), hit("/api/cron/fx-update"));
-    else if (c === "0 11 * * *") jobs.push(hit("/api/cron/balance-due"), hit("/api/cron/ops-report"));
+    else if (c === "30 6 * * *") jobs.push(hit("/api/cron/generate-slots"), hit("/api/cron/fx-update"), hit("/api/cron/balance-due"), hit("/api/cron/ops-report"));
 
     ctx.waitUntil(Promise.all(jobs));
   },
