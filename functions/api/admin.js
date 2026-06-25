@@ -46,12 +46,11 @@ export async function onRequestGet(context) {
     }
     if (view === "export") {
       const type = new URL(request.url).searchParams.get("type");
-      let rows = [];
-      if (type === "customers") rows = await sql`select id, created_at, email, name, phone, country, language, marketing_consent from customers order by created_at desc`;
-      else if (type === "reservations") rows = await sql`select id, created_at, state, email, name, phone, experience, arrival_date, party_size, total_cents, currency from reservations order by created_at desc`;
-      else if (type === "orders") rows = await sql`select id, created_at, status, email, name, total_cents, currency, coupon_code, tracking from orders order by created_at desc`;
+      let rows = [], cols = [];
+      if (type === "customers") { rows = await sql`select id, created_at, email, name, phone, country, language, marketing_consent from customers order by created_at desc`; cols = ["id", "created_at", "email", "name", "phone", "country", "language", "marketing_consent"]; }
+      else if (type === "reservations") { rows = await sql`select id, created_at, state, email, name, phone, experience, arrival_date, party_size, total_cents, currency from reservations order by created_at desc`; cols = ["id", "created_at", "state", "email", "name", "phone", "experience", "arrival_date", "party_size", "total_cents", "currency"]; }
+      else if (type === "orders") { rows = await sql`select id, created_at, status, email, name, total_cents, currency, coupon_code, tracking from orders order by created_at desc`; cols = ["id", "created_at", "status", "email", "name", "total_cents", "currency", "coupon_code", "tracking"]; }
       else return json({ error: "type must be customers|reservations|orders" }, 400);
-      const cols = rows.length ? Object.keys(rows[0]) : [];
       const esc = (v) => v == null ? "" : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
       const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
       return new Response(csv, { headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="${type}.csv"`, "Cache-Control": "no-store" } });
