@@ -161,3 +161,36 @@ Run payslips for these and match to a manual calc:
 2. Salary RD$80,000/mo → pays ISR (verify bracket math); TSS caps if applicable.
 3. Salary RD$25,000 + 10h overtime → verify OT line + net.
 4. December run → regalía line, ISR-exempt.
+
+---
+
+## 12. Attendance-driven pay (salary computed from scanned hours)
+
+The biometric scans become `hr.attendance` (check_in/check_out). The payslip computes pay from those hours.
+Choose per employee/contract:
+
+**A) Hourly employees — pay = rate × hours actually worked.** Replace the BASIC rule with:
+```python
+# --- BASIC (hourly, attendance-driven). Reads real scanned hours in the payslip period. ---
+d_from, d_to = payslip.date_from, payslip.date_to
+atts = employee.attendance_ids.filtered(
+    lambda a: a.check_out and d_from <= a.check_in.date() <= d_to)
+hours = sum(atts.mapped('worked_hours'))
+result = hours * (contract.hourly_wage or (contract.wage / (payslip.rule_parameter('dr_week_legal_hours') * 4.333)))
+```
+→ Fewer hours scanned ⇒ lower salary, automatically. Overtime = hours beyond the weekly legal limit at the OT premium.
+
+**B) Salaried employees — fixed wage + attendance for OT / absences.** Keep `BASIC = contract.wage`, and add:
+```python
+# --- ABSENCE deduction (salaried): unworked vs scheduled hours ---
+scheduled = contract.resource_calendar_id.hours_per_day * worked_days.WORK100.number_of_days  # planned
+d_from, d_to = payslip.date_from, payslip.date_to
+actual = sum(employee.attendance_ids.filtered(lambda a: a.check_out and d_from <= a.check_in.date() <= d_to).mapped('worked_hours'))
+missing = max(0.0, scheduled - actual)
+hourly = contract.wage / (payslip.rule_parameter('dr_week_legal_hours') * 4.333)
+result = - missing * hourly      # category DED
+```
+
+**Recommended Odoo setup either way:** Employees → Configuration → enable attendance-based work entries (or use the rules above, which read `hr.attendance` directly and don't depend on work-entry config). Set each employee's **Working Schedule** (44h/wk) so overtime is well-defined.
+
+**End-to-end:** scan out at the gate → within minutes the punch is in Odoo `hr.attendance` → at payroll run, the rule sums the period's hours → salary reflects exactly the time worked.
