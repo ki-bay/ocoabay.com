@@ -1,0 +1,15 @@
+name = "ocoabay-cron"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+# Point at staging now; change to https://ocoabay.com after DNS cutover.
+[vars]
+TARGET_BASE = "https://ocoabay-clone.pages.dev"
+
+# Schedules (UTC). DR is UTC-4.
+#  every 15 min : holds-sweeper + attendance-replay
+#  every 30 min : cs-digest
+#  hourly       : reminders + abandoned-cart
+#  daily 06:30  : slot top-up
+[triggers]
+crons = ["*/15 * * * *", "*/30 * * * *", "0 * * * *", "30 6 * * *"]
