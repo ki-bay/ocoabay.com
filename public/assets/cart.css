@@ -1,6 +1,6 @@
 /* OcoaBay cart UI — uses the site's existing typography; adds cart-specific bits */
 .ocoa-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
-  background:#2b1a12;color:#fff;padding:12px 20px;border-radius:6px;font-size:14px;z-index:99999;
+  background:#212121;color:#fff;padding:12px 20px;border-radius:6px;font-size:14px;z-index:99999;
   opacity:0;transition:opacity .25s,transform .25s;box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:90vw}
 .ocoa-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 a.add_to_cart_button.loading{opacity:.6;pointer-events:none}
@@ -11,7 +11,7 @@ a.add_to_cart_button.added::after{content:" ✓"}
 .ocoa-cart-loading,.ocoa-cart-empty{text-align:center;padding:60px 0;color:#555}
 .ocoa-cart-table{width:100%;border-collapse:collapse;margin-bottom:24px}
 .ocoa-cart-table th{text-align:left;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-  color:#8a7a6f;border-bottom:2px solid #eee;padding:0 12px 12px}
+  color:#7a7068;border-bottom:2px solid #eee;padding:0 12px 12px}
 .ocoa-cart-table td{padding:16px 12px;border-bottom:1px solid #f0ece8;vertical-align:middle}
 .ocoa-ci{display:flex;align-items:center;gap:14px}
 .ocoa-ci img{width:60px;height:60px;object-fit:cover;border-radius:6px}
@@ -19,24 +19,24 @@ a.add_to_cart_button.added::after{content:" ✓"}
 .ocoa-qty button{width:34px;height:34px;border:0;background:#faf7f4;cursor:pointer;font-size:16px}
 .ocoa-qty span{min-width:36px;text-align:center}
 .ocoa-rm{border:0;background:none;font-size:22px;color:#b9a89c;cursor:pointer;line-height:1}
-.ocoa-rm:hover{color:#8b2f2f}
+.ocoa-rm:hover{color:#a01a1f}
 .ocoa-cart-foot{display:flex;justify-content:flex-end;align-items:center;gap:32px;flex-wrap:wrap}
 .ocoa-totals{font-size:18px}.ocoa-totals strong{margin-left:10px}
 .ocoa-btn{display:inline-block;padding:14px 30px;border-radius:6px;text-decoration:none;
-  border:1px solid #6b3f2a;color:#6b3f2a;font-size:14px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
-.ocoa-btn-primary{background:#6b3f2a;color:#fff}
-.ocoa-btn-primary:hover{background:#552f1f}
+  border:1px solid #74181B;color:#74181B;font-size:14px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.ocoa-btn-primary{background:#74181B;color:#fff}
+.ocoa-btn-primary:hover{background:#5a1316}
 
 /* Checkout */
 .ocoa-checkout{max-width:1000px;margin:40px auto;padding:0 20px;display:grid;grid-template-columns:1.2fr .8fr;gap:40px;font-family:inherit}
 @media(max-width:780px){.ocoa-checkout{grid-template-columns:1fr}}
-.ocoa-checkout label{display:block;font-size:13px;color:#6b5a4f;margin:14px 0 6px}
+.ocoa-checkout label{display:block;font-size:13px;color:#7a7068;margin:14px 0 6px}
 .ocoa-checkout input{width:100%;padding:12px;border:1px solid #ddd;border-radius:6px;font-size:15px}
 .ocoa-summary{background:#faf7f4;border-radius:10px;padding:24px;height:fit-content}
 .ocoa-summary h3{margin:0 0 16px}
 .ocoa-summary .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #efe9e4}
 #ocoa-pay-element{margin:18px 0}
-.ocoa-pay-msg{color:#8b2f2f;font-size:14px;min-height:20px}
+.ocoa-pay-msg{color:#a01a1f;font-size:14px;min-height:20px}
 
 /* Side drawer */
 #ocoa-drawer{position:fixed;inset:0;z-index:100000;pointer-events:none}
@@ -52,14 +52,14 @@ a.add_to_cart_button.added::after{content:" ✓"}
 .ocoa-dl{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f2ede9}
 .ocoa-dl img{width:54px;height:54px;object-fit:cover;border-radius:6px}
 .ocoa-dl-info{flex:1;display:flex;flex-direction:column;font-size:14px}
-.ocoa-dl-info span{color:#8a7a6f;font-size:13px}
+.ocoa-dl-info span{color:#7a7068;font-size:13px}
 .ocoa-dl-foot{padding:16px 4px}
 .ocoa-dl-foot .ocoa-btn{display:block;text-align:center;margin-top:8px}
 .ocoa-cart-grid{display:grid;grid-template-columns:1fr 320px;gap:30px;align-items:start}
 @media(max-width:780px){.ocoa-cart-grid{grid-template-columns:1fr}}
 .ocoa-coupon{display:flex;gap:8px;flex-wrap:wrap}
 .ocoa-coupon input{flex:1;min-width:140px;padding:11px;border:1px solid #ddd;border-radius:6px}
-.ocoa-coupon-msg{flex-basis:100%;color:#8b2f2f;font-size:13px}
+.ocoa-coupon-msg{flex-basis:100%;color:#a01a1f;font-size:13px}
 .ocoa-totals-block .row,.ocoa-summary .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #efe9e4}
 .ocoa-totals-block{background:#faf7f4;border-radius:10px;padding:20px}
 .ocoa-order-ok{text-align:center}.ocoa-order-ok code{background:#f3ede8;padding:2px 8px;border-radius:4px}
@@ -70,7 +70,7 @@ a.add_to_cart_button.added::after{content:" ✓"}
 .ocoa-auth-card h2{margin-top:0}
 .ocoa-account .tabs{display:flex;gap:8px;border-bottom:1px solid #eee;margin-bottom:20px;flex-wrap:wrap}
 .ocoa-account .tabs button{border:0;background:none;padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent}
-.ocoa-account .tabs button.active{border-bottom-color:#6b3f2a;color:#6b3f2a}
+.ocoa-account .tabs button.active{border-bottom-color:#74181B;color:#74181B}
 .ocoa-account table{width:100%;border-collapse:collapse}
 .ocoa-account td,.ocoa-account th{padding:12px;border-bottom:1px solid #f0ece8;text-align:left}
 .ocoa-tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;background:#f3ede8}
@@ -82,7 +82,7 @@ a.add_to_cart_button.added::after{content:" ✓"}
 .ocoa-card a{text-decoration:none;color:inherit}
 .ocoa-card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
 .ocoa-card h3{font-size:16px;font-weight:400;margin:12px 0 4px}
-.ocoa-card .price{color:#6b3f2a;margin-bottom:10px}
+.ocoa-card .price{color:#74181B;margin-bottom:10px}
 
 /* Product lightbox */
 #ocoa-lightbox{position:fixed;inset:0;z-index:100001;background:rgba(15,10,8,.92);display:none;align-items:center;justify-content:center}
@@ -96,12 +96,12 @@ a.add_to_cart_button.added::after{content:" ✓"}
 /* Reservation / booking form */
 #ocoa-reservation{max-width:880px;margin:50px auto;padding:0 20px}
 .ocoa-resv-card{background:#faf7f4;border-radius:14px;padding:34px}
-.ocoa-resv-card h3{margin:0 0 20px;text-align:center;font-weight:400;font-size:26px;color:#2b1a12}
+.ocoa-resv-card h3{margin:0 0 20px;text-align:center;font-weight:400;font-size:26px;color:#212121}
 .ocoa-resv-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:680px){.ocoa-resv-grid{grid-template-columns:1fr}}
-.ocoa-resv label{display:block;font-size:13px;color:#6b5a4f;margin-bottom:14px}
+.ocoa-resv label{display:block;font-size:13px;color:#7a7068;margin-bottom:14px}
 .ocoa-resv input,.ocoa-resv select,.ocoa-resv textarea{width:100%;margin-top:6px;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
-.ocoa-resv-msg{color:#8b2f2f;font-size:14px;min-height:18px;margin:6px 0}
+.ocoa-resv-msg{color:#a01a1f;font-size:14px;min-height:18px;margin:6px 0}
 #ocoa-reservation .ocoa-btn-primary{width:100%;text-align:center;padding:15px;font-size:15px;margin-top:6px}
 .ocoa-resv-ok{text-align:center;padding:30px 0}
-.ocoa-resv-ok h4{color:#6b3f2a;font-size:22px;margin:0 0 10px}
+.ocoa-resv-ok h4{color:#74181B;font-size:22px;margin:0 0 10px}
