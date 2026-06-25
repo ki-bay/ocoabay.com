@@ -95,3 +95,6 @@ alter table customers add column if not exists language text default 'en';
 alter table customers add column if not exists preferred_channel text;
 alter table customers add column if not exists marketing_consent boolean default false;
 alter table customers add column if not exists notes text;
+
+alter table holds add column if not exists club_slot_id uuid;
+alter table reservations add column if not exists club_slot_id uuid;

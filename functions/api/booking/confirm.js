@@ -16,7 +16,7 @@ export async function onRequestPost({ request, env }) {
     if (!name) return json({ error: "Name required" }, 400);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Valid email required" }, 400);
 
-    const rows = await sql`select h.id hold_id, h.qty, h.expires_at, h.reservation_id,
+    const rows = await sql`select h.id hold_id, h.qty, h.expires_at, h.reservation_id, h.club_slot_id,
       a.id slot_id, a.starts_at, a.service_id,
       s.slug, s.name_en, s.base_price_cents, s.config
       from holds h join availability_slots a on a.id = h.slot_id join services s on s.id = a.service_id
@@ -37,6 +37,8 @@ export async function onRequestPost({ request, env }) {
 
     // reserve the seat (we already hold this capacity) and drop the hold
     await sql`update availability_slots set booked = booked + ${H.qty}, held = greatest(0, held - ${H.qty}) where id = ${H.slot_id}`;
+    // tour bookings also confirm the Club House day pool
+    if (H.club_slot_id) await sql`update availability_slots set booked = booked + ${H.qty}, held = greatest(0, held - ${H.qty}) where id = ${H.club_slot_id}`;
     await sql`delete from holds where id = ${H.hold_id}`;
 
     const state = payMode === "none" ? "confirmed" : "pending_payment";
@@ -45,10 +47,10 @@ export async function onRequestPost({ request, env }) {
 
     const ins = await sql`insert into reservations
       (experience, name, email, phone, arrival_date, people, message, status,
-       customer_id, service_id, slot_id, state, party_size, details, language,
+       customer_id, service_id, slot_id, club_slot_id, state, party_size, details, language,
        subtotal_cents, tax_cents, service_charge_cents, total_cents, deposit_cents, source, raw)
       values (${H.name_en}, ${name}, ${email}, ${b.phone || null}, ${arrival}, ${H.qty}, ${details.message || null}, ${state},
-       ${customerId}, ${H.service_id}, ${H.slot_id}, ${state}, ${H.qty}, ${JSON.stringify(details)}, ${lang},
+       ${customerId}, ${H.service_id}, ${H.slot_id}, ${H.club_slot_id}, ${state}, ${H.qty}, ${JSON.stringify(details)}, ${lang},
        ${price.subtotal_cents}, ${price.tax_cents}, ${price.service_charge_cents}, ${price.total_cents}, 0, 'web', ${JSON.stringify(b)})
       returning id`;
     const rid = ins[0].id;

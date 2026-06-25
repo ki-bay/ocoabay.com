@@ -47,6 +47,16 @@ export async function priceBooking(sql, service, partySize, options = []) {
   };
 }
 
+// Tour guests continue to the Club House, so a tour booking also consumes the Club House
+// day pool (100/day). Returns the club-house day slot for a given DR date (YYYY-MM-DD), or null.
+export async function clubhouseSlotForDate(sql, dateStr) {
+  const r = await sql`select a.id, a.capacity, a.booked, a.held from availability_slots a
+    join services s on s.id = a.service_id
+    where s.slug = 'club-house' and (a.starts_at at time zone 'America/Santo_Domingo')::date = ${dateStr}::date
+    limit 1`;
+  return r[0] || null;
+}
+
 export function getCookie(request, name) {
   const h = request.headers.get("Cookie") || "";
   const m = h.match(new RegExp("(?:^|; )" + name + "=([^;]+)"));

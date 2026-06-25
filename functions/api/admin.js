@@ -98,13 +98,15 @@ export async function onRequestPost(context) {
     if (body.action === "booking_state") {
       const allowed = ["pending_payment", "confirmed", "completed", "cancelled", "expired"];
       if (!allowed.includes(body.state)) return json({ error: "Bad state" }, 400);
-      const rows = await sql`select state, slot_id, party_size from reservations where id = ${body.id}`;
+      const rows = await sql`select state, slot_id, club_slot_id, party_size from reservations where id = ${body.id}`;
       if (!rows.length) return json({ error: "Not found" }, 404);
       const r = rows[0];
       const wasActive = ["confirmed", "pending_payment"].includes(r.state);
       const nowReleased = ["cancelled", "expired"].includes(body.state);
-      if (wasActive && nowReleased && r.slot_id && r.party_size)
-        await sql`update availability_slots set booked = greatest(0, booked - ${r.party_size}) where id = ${r.slot_id}`;
+      if (wasActive && nowReleased && r.party_size) {
+        if (r.slot_id) await sql`update availability_slots set booked = greatest(0, booked - ${r.party_size}) where id = ${r.slot_id}`;
+        if (r.club_slot_id) await sql`update availability_slots set booked = greatest(0, booked - ${r.party_size}) where id = ${r.club_slot_id}`;
+      }
       await sql`update reservations set state = ${body.state}, status = ${body.state} where id = ${body.id}`;
       await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${body.id}, ${r.state}, ${body.state}, 'admin')`;
       return json({ ok: true });
@@ -118,12 +120,26 @@ export async function onRequestPost(context) {
       if (!svc) return json({ error: "Unknown service" }, 400);
       const qty = Math.max(1, parseInt(body.party_size, 10) || 1);
 
-      // atomic reserve
+      // atomic reserve (session)
       const upd = await sql`update availability_slots set booked = booked + ${qty}
         where id = ${body.slot_id} and service_id = ${svc.id} and status = 'open' and starts_at > now()
           and booked + held + ${qty} <= capacity returning starts_at`;
       if (!upd.length) return json({ ok: false, error: "Slot unavailable for that party size" }, 409);
       const arrival = new Date(upd[0].starts_at).toISOString().slice(0, 10);
+
+      // tour bookings also consume the Club House day pool
+      let clubSlotId = null;
+      if (svc.config && svc.config.uses_clubhouse) {
+        const ch = await sql`update availability_slots a set booked = a.booked + ${qty}
+          from services s where s.id = a.service_id and s.slug = 'club-house' and a.status = 'open'
+            and (a.starts_at at time zone 'America/Santo_Domingo')::date = ${arrival}::date
+            and a.booked + a.held + ${qty} <= a.capacity returning a.id`;
+        if (!ch.length) {
+          await sql`update availability_slots set booked = greatest(0, booked - ${qty}) where id = ${body.slot_id}`;
+          return json({ ok: false, error: "Club House is full for that date" }, 409);
+        }
+        clubSlotId = ch[0].id;
+      }
       const price = await priceBooking(sql, svc, qty, []);
       const payMode = (svc.config && svc.config.payment) || "full";
 
@@ -132,9 +148,9 @@ export async function onRequestPost(context) {
       const state = payMode === "none" ? "confirmed" : "pending_payment";
 
       const ins = await sql`insert into reservations
-        (experience, name, email, phone, arrival_date, people, status, customer_id, service_id, slot_id, state,
+        (experience, name, email, phone, arrival_date, people, status, customer_id, service_id, slot_id, club_slot_id, state,
          party_size, details, language, subtotal_cents, tax_cents, service_charge_cents, total_cents, source, raw)
-        values (${svc.name_en}, ${name}, ${email}, ${body.phone || null}, ${arrival}, ${qty}, ${state}, ${cust[0].id}, ${svc.id}, ${body.slot_id}, ${state},
+        values (${svc.name_en}, ${name}, ${email}, ${body.phone || null}, ${arrival}, ${qty}, ${state}, ${cust[0].id}, ${svc.id}, ${body.slot_id}, ${clubSlotId}, ${state},
          ${qty}, ${JSON.stringify(body.details || {})}, ${lang}, ${price.subtotal_cents}, ${price.tax_cents}, ${price.service_charge_cents}, ${price.total_cents}, 'cs', ${JSON.stringify({ by: "cs" })})
         returning id`;
       const rid = ins[0].id;
