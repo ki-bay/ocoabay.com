@@ -59,19 +59,36 @@ export async function handleInbound(env, sql, { channel, externalId, text, name 
   await sql`insert into messages (conversation_id, role, content) values (${convId}, 'assistant', ${reply})`;
   if (escalated) {
     await sql`update conversations set status = 'handoff' where id = ${convId}`;
-    try { await emailTranscript(env, sql, convId, channel, externalId); } catch (_) {}
+    try { await emailTranscript(env, sql, convId, channel, externalId, "handoff"); } catch (_) {}
   }
   return { convId, reply, escalated, lang };
 }
 
-// Emails the conversation transcript to the designated address (on handoff / close).
-export async function emailTranscript(env, sql, convId, channel, externalId) {
-  if (!env.TRANSCRIPT_EMAIL) return;
+// Emails the full conversation transcript to customer service (bilingual). Used on human-handoff
+// and by the idle-conversation digest cron. Dedupes via conversations.transcript_sent_at.
+export async function emailTranscript(env, sql, convId, channel, externalId, reason) {
+  const to = env.TRANSCRIPT_EMAIL || "CS@ocoabay.com";
+  const conv = await sql`select language, status from conversations where id = ${convId}`;
+  if (!conv.length) return;
+  const lang = conv[0].language || "en";
   const msgs = await sql`select role, content, at from messages where conversation_id = ${convId} order by at`;
-  const rows = msgs.map((m) => `<p><strong>${m.role}:</strong> ${(m.content || "").replace(/</g, "&lt;")}</p>`).join("");
+  if (!msgs.length) return;
+  const fmt = (d) => new Intl.DateTimeFormat("es-DO", { dateStyle: "short", timeStyle: "short", timeZone: "America/Santo_Domingo" }).format(new Date(d));
+  const rows = msgs.map((m) =>
+    `<p style="margin:6px 0"><small style="color:#999">${fmt(m.at)}</small> <strong>${m.role === "user" ? "Customer / Cliente" : (m.role === "assistant" ? "Assistant / Asistente" : m.role)}:</strong> ${(m.content || "").replace(/</g, "&lt;")}</p>`).join("");
   const { sendEmail } = await import("./email.js");
-  await sendEmail(env, { to: env.TRANSCRIPT_EMAIL, subject: `OcoaBay chat transcript — ${channel} ${externalId}`,
-    html: `<div style="font-family:Georgia,serif"><h3>Conversation needs a human (${channel})</h3>${rows}</div>` });
+  const banner = reason === "handoff"
+    ? "⚠️ Needs a human / Requiere atención humana"
+    : "Conversation transcript / Transcripción de conversación";
+  await sendEmail(env, {
+    to,
+    subject: `OcoaBay CS — ${channel} ${reason === "handoff" ? "(handoff)" : ""} ${externalId || "web"}`,
+    html: `<div style="font-family:Georgia,serif;max-width:640px;color:#2b1a12">
+      <h3 style="color:#6b3f2a">${banner}</h3>
+      <p style="color:#777">Channel / Canal: <strong>${channel}</strong> · Contact / Contacto: ${externalId || "web visitor"} · Language / Idioma: ${lang} · Status: ${conv[0].status}</p>
+      <hr style="border:0;border-top:1px solid #eee">${rows}</div>`,
+  });
+  await sql`update conversations set transcript_sent_at = now() where id = ${convId}`;
 }
 
 // Outbound senders (no-op until creds set).

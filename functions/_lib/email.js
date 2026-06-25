@@ -119,3 +119,37 @@ export async function sendBookingEmail(env, { sql, reservationId, arrange = fals
 
   return sendEmail(env, { to: r.email, subject: t.subj, html: layout(t.hi, body) });
 }
+
+async function loadResv(sql, id) {
+  const rows = await sql`select r.email, r.name, r.language, r.party_size, a.starts_at,
+    s.name_en, s.name_es from reservations r join services s on s.id = r.service_id
+    join availability_slots a on a.id = r.slot_id where r.id = ${id}`;
+  return rows[0] || null;
+}
+
+// Reminder ~24-48h before the experience.
+export async function sendBookingReminder(env, { sql, reservationId }) {
+  const r = await loadResv(sql, reservationId); if (!r) return;
+  const es = r.language === "es";
+  const svcName = es ? r.name_es : r.name_en;
+  const when = new Intl.DateTimeFormat(es ? "es-DO" : "en-US", { dateStyle: "full", timeStyle: "short", timeZone: "America/Santo_Domingo" }).format(new Date(r.starts_at));
+  const subj = es ? `Recordatorio: tu reserva en OcoaBay` : `Reminder: your OcoaBay reservation`;
+  const hi = es ? `¡Te esperamos, ${r.name}!` : `See you soon, ${r.name}!`;
+  const body = es
+    ? `<p>Este es un recordatorio de tu reserva para <strong>${svcName}</strong>.</p><p><strong>${when}</strong> · ${r.party_size} huésped(es)</p><p>Llega 10 minutos antes. ¿Necesitas reprogramar? Solo es posible con más de 72 h de antelación.</p>`
+    : `<p>A friendly reminder of your reservation for <strong>${svcName}</strong>.</p><p><strong>${when}</strong> · ${r.party_size} guest(s)</p><p>Please arrive 10 minutes early. Need to reschedule? Only possible more than 72h ahead.</p>`;
+  return sendEmail(env, { to: r.email, subject: subj, html: layout(hi, body) });
+}
+
+// Thank-you + review request after the visit.
+export async function sendThankYou(env, { sql, reservationId }) {
+  const r = await loadResv(sql, reservationId); if (!r) return;
+  const es = r.language === "es";
+  const svcName = es ? r.name_es : r.name_en;
+  const subj = es ? `¡Gracias por visitar OcoaBay!` : `Thank you for visiting OcoaBay!`;
+  const hi = es ? `¡Gracias, ${r.name}!` : `Thank you, ${r.name}!`;
+  const body = es
+    ? `<p>Esperamos que hayas disfrutado <strong>${svcName}</strong>. Nos encantaría conocer tu opinión — ¿nos dejas una reseña en Google?</p><p>¡Vuelve pronto! Reserva en <a href="https://ocoabay.com/book/">ocoabay.com/book</a>.</p>`
+    : `<p>We hope you enjoyed <strong>${svcName}</strong>. We'd love your feedback — would you leave us a Google review?</p><p>Come back soon! Book at <a href="https://ocoabay.com/book/">ocoabay.com/book</a>.</p>`;
+  return sendEmail(env, { to: r.email, subject: subj, html: layout(hi, body) });
+}

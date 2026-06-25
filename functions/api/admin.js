@@ -32,6 +32,30 @@ export async function onRequestGet(context) {
         where r.service_id is not null order by r.created_at desc limit 300`;
       return json({ bookings, states: ["pending_payment", "confirmed", "completed", "cancelled", "expired"] });
     }
+    if (view === "conversations") {
+      const conversations = await sql`select c.id, c.channel, c.status, c.language, c.created_at, c.updated_at,
+        (select count(*) from messages m where m.conversation_id = c.id)::int msgs,
+        (select content from messages m where m.conversation_id = c.id and m.role = 'user' order by m.at desc limit 1) last_user
+        from conversations c order by (c.status = 'handoff') desc, c.updated_at desc limit 200`;
+      return json({ conversations });
+    }
+    if (view === "conversation") {
+      const id = new URL(request.url).searchParams.get("id");
+      const messages = await sql`select role, content, at from messages where conversation_id = ${id} order by at`;
+      return json({ messages });
+    }
+    if (view === "export") {
+      const type = new URL(request.url).searchParams.get("type");
+      let rows = [];
+      if (type === "customers") rows = await sql`select id, created_at, email, name, phone, country, language, marketing_consent from customers order by created_at desc`;
+      else if (type === "reservations") rows = await sql`select id, created_at, state, email, name, phone, experience, arrival_date, party_size, total_cents, currency from reservations order by created_at desc`;
+      else if (type === "orders") rows = await sql`select id, created_at, status, email, name, total_cents, currency, coupon_code, tracking from orders order by created_at desc`;
+      else return json({ error: "type must be customers|reservations|orders" }, 400);
+      const cols = rows.length ? Object.keys(rows[0]) : [];
+      const esc = (v) => v == null ? "" : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+      const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
+      return new Response(csv, { headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="${type}.csv"`, "Cache-Control": "no-store" } });
+    }
     if (view === "availability") {
       const u = new URL(request.url);
       const slug = u.searchParams.get("service");
@@ -84,6 +108,12 @@ export async function onRequestPost(context) {
         await sql`update availability_slots set booked = greatest(0, booked - ${r.party_size}) where id = ${r.slot_id}`;
       await sql`update reservations set state = ${body.state}, status = ${body.state} where id = ${body.id}`;
       await sql`insert into reservation_events (reservation_id, from_state, to_state, actor) values (${body.id}, ${r.state}, ${body.state}, 'admin')`;
+      return json({ ok: true });
+    }
+    if (body.action === "conv_status") {
+      const allowed = ["open", "handoff", "closed"];
+      if (!allowed.includes(body.status)) return json({ error: "Bad status" }, 400);
+      await sql`update conversations set status = ${body.status}, updated_at = now() where id = ${body.id}`;
       return json({ ok: true });
     }
     if (body.action === "block_slot" || body.action === "open_slot") {
