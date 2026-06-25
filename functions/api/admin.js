@@ -55,6 +55,45 @@ export async function onRequestGet(context) {
       const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
       return new Response(csv, { headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="${type}.csv"`, "Cache-Control": "no-store" } });
     }
+    if (view === "attendance") {
+      const u = new URL(request.url);
+      let from = u.searchParams.get("from"), to = u.searchParams.get("to");
+      if (!from) from = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+      const punches = await sql`select device_user_id, punched_at, status from device_punches
+        where (punched_at at time zone 'America/Santo_Domingo')::date >= ${from}::date
+          and (${to}::text is null or (punched_at at time zone 'America/Santo_Domingo')::date <= ${to}::date)
+        order by device_user_id, punched_at`;
+
+      const LEGAL = 44; // DR legal weekly hours
+      const drDate = (ts) => new Date(new Date(ts).getTime() - 4 * 3600000).toISOString().slice(0, 10);
+      const weekKey = (ds) => { const dt = new Date(ds + "T00:00:00Z"); const m = (dt.getUTCDay() + 6) % 7; dt.setUTCDate(dt.getUTCDate() - m); return dt.toISOString().slice(0, 10); };
+      const r2 = (n) => Math.round(n * 100) / 100;
+      const byUser = {};
+      for (const p of punches) (byUser[p.device_user_id] = byUser[p.device_user_id] || []).push(p);
+
+      const employees = [];
+      for (const uid of Object.keys(byUser).sort()) {
+        const ps = byUser[uid].sort((a, b) => new Date(a.punched_at) - new Date(b.punched_at));
+        const dayHours = {}, weekHours = {}, pairs = [];
+        for (let i = 0; i + 1 < ps.length; i += 2) {
+          const ci = new Date(ps[i].punched_at), co = new Date(ps[i + 1].punched_at);
+          const hrs = Math.max(0, (co - ci) / 3600000);
+          const d = drDate(ps[i].punched_at);
+          dayHours[d] = (dayHours[d] || 0) + hrs;
+          weekHours[weekKey(d)] = (weekHours[weekKey(d)] || 0) + hrs;
+          pairs.push({ date: d, in: ci.toISOString(), out: co.toISOString(), hours: r2(hrs) });
+        }
+        const total = Object.values(dayHours).reduce((a, b) => a + b, 0);
+        const ot = Object.values(weekHours).reduce((a, h) => a + Math.max(0, h - LEGAL), 0);
+        employees.push({
+          device_user_id: uid, days: Object.keys(dayHours).length,
+          total_hours: r2(total), regular_hours: r2(total - ot), overtime_hours: r2(ot),
+          open_punch: ps.length % 2 === 1, pairs,
+          daily: Object.keys(dayHours).sort().map((d) => ({ date: d, hours: r2(dayHours[d]) })),
+        });
+      }
+      return json({ from, to: to || null, legal_week_hours: LEGAL, employees });
+    }
     if (view === "availability") {
       const u = new URL(request.url);
       const slug = u.searchParams.get("service");

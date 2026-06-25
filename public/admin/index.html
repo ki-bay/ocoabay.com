@@ -28,6 +28,7 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
       <button onclick="show('convos')" id="tab-convos" style="background:#8a7a6f">Conversations</button>
       <button onclick="show('resv')" id="tab-resv" style="background:#8a7a6f">Reservations</button>
       <button onclick="show('newbk')" id="tab-newbk" style="background:#8a7a6f">New Booking</button>
+      <button onclick="show('attend')" id="tab-attend" style="background:#8a7a6f">Attendance</button>
       <button onclick="show('export')" id="tab-export" style="background:#8a7a6f">Export</button></div>
     <div id="view-orders">
       <div class="stats" id="stats"></div>
@@ -67,6 +68,16 @@ code{background:#f3ede8;padding:2px 6px;border-radius:4px}
         <div id="cs-result" style="margin-top:14px"></div>
       </div>
     </div>
+    <div id="view-attend" style="display:none">
+      <div style="margin-bottom:12px">
+        From <input type="date" id="att-from"> To <input type="date" id="att-to">
+        <button onclick="loadAttendance()">Load</button>
+        <span id="att-note" style="color:#777;font-size:13px;margin-left:10px"></span>
+      </div>
+      <table id="attend"><thead><tr><th>Employee (device id)</th><th>Days</th><th>Total hrs</th><th>Regular</th><th>Overtime</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>
+      <div id="att-detail" style="margin-top:14px"></div>
+      <p style="color:#777;font-size:13px;margin-top:10px">Hours are paired from biometric scan-in/scan-out. Overtime = hours beyond 44/week (DR legal). The device id maps to the Odoo employee (field <code>barcode</code>).</p>
+    </div>
     <div id="view-export" style="display:none">
       <p>Download data as CSV (for CRM import / analysis):</p>
       <p><button onclick="exportCsv('customers')">Customers</button>
@@ -97,7 +108,7 @@ function load(){
 function setStatus(id,status){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'status',id:id,status:status})})}
 function setTrack(id,tracking){fetch('/api/admin',{method:'POST',headers:hdr(),body:JSON.stringify({action:'tracking',id:id,tracking:tracking})})}
 function show(v){
-  var views={orders:'view-orders',bookings:'view-bookings',avail:'view-avail',convos:'view-convos',resv:'view-resv',newbk:'view-newbk',export:'view-export'};
+  var views={orders:'view-orders',bookings:'view-bookings',avail:'view-avail',convos:'view-convos',resv:'view-resv',newbk:'view-newbk',attend:'view-attend',export:'view-export'};
   for(var k in views){
     document.getElementById(views[k]).style.display=(k===v?'block':'none');
     document.getElementById('tab-'+k).style.background=(k===v?'#6b3f2a':'#8a7a6f');
@@ -107,6 +118,29 @@ function show(v){
   if(v==='avail')loadAvail();
   if(v==='convos')loadConvos();
   if(v==='newbk')csInit();
+  if(v==='attend')loadAttendance();
+}
+var ATT={};
+function loadAttendance(){
+  var f=document.getElementById('att-from').value, t=document.getElementById('att-to').value;
+  fetch('/api/admin?view=attendance'+(f?'&from='+f:'')+(t?'&to='+t:''),{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
+    if(!f)document.getElementById('att-from').value=d.from;
+    document.getElementById('att-note').textContent='Legal week '+d.legal_week_hours+'h · '+d.from+(d.to?(' → '+d.to):' → today');
+    ATT={}; (d.employees||[]).forEach(function(e){ATT[e.device_user_id]=e;});
+    var tb=document.querySelector('#attend tbody');
+    tb.innerHTML=(d.employees||[]).map(function(e){
+      var ot=e.overtime_hours>0?'<strong style="color:#a01a1f">'+e.overtime_hours+'</strong>':e.overtime_hours;
+      var st=e.open_punch?'<span style="color:#c80">clocked in</span>':'OK';
+      return '<tr><td>'+e.device_user_id+'</td><td>'+e.days+'</td><td>'+e.total_hours+'</td><td>'+e.regular_hours+'</td><td>'+ot+'</td><td>'+st+'</td><td><button onclick="attDetail(\''+e.device_user_id+'\')">days</button></td></tr>';
+    }).join('')||'<tr><td colspan=7>No attendance in range yet. Punches arrive automatically from the biometric terminal.</td></tr>';
+    document.getElementById('att-detail').innerHTML='';
+  });
+}
+function attDetail(uid){
+  var e=ATT[uid]; if(!e)return;
+  var tt=function(iso){return new Date(iso).toLocaleTimeString('en-US',{timeZone:'America/Santo_Domingo',hour:'2-digit',minute:'2-digit'})};
+  var rows=(e.pairs||[]).map(function(p){return '<tr><td>'+p.date+'</td><td>'+tt(p.in)+'</td><td>'+tt(p.out)+'</td><td>'+p.hours+'</td></tr>'}).join('');
+  document.getElementById('att-detail').innerHTML='<h3 style="margin:8px 0">'+uid+' — scan pairs</h3><table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th></tr></thead><tbody>'+(rows||'<tr><td colspan=4>No completed pairs.</td></tr>')+'</tbody></table>';
 }
 function loadConvos(){
   fetch('/api/admin?view=conversations',{headers:hdr()}).then(function(r){return r.json()}).then(function(d){
