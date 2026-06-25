@@ -7,6 +7,20 @@
 .ob-step{margin:18px 0}
 .ob-label{display:block;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .ob-dates,.ob-sessions{display:flex;flex-wrap:wrap;gap:8px}
+/* modern month calendar */
+.ob-cal{border:1px solid #ece3db;border-radius:14px;padding:14px 16px;background:#fff;max-width:360px}
+.ob-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ob-cal-title{font-size:16px;font-weight:600;color:var(--ink)}
+.ob-cal-nav{width:34px;height:34px;border:1px solid #e2d6cb;background:#fff;border-radius:9px;cursor:pointer;font-size:20px;line-height:1;color:var(--ocoa)}
+.ob-cal-nav:hover:not(:disabled){background:var(--bg);border-color:var(--ocoa)}
+.ob-cal-nav:disabled{opacity:.3;cursor:default}
+.ob-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.ob-cal-dow{text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding-bottom:4px}
+.ob-cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:14px;border:0;background:none;font-family:inherit}
+.ob-cal-day.muted{color:#cdbfb3}
+.ob-cal-day.avail{color:var(--ink);cursor:pointer;font-weight:600;background:#f4ede7;border:1px solid transparent}
+.ob-cal-day.avail:hover{border-color:var(--ocoa)}
+.ob-cal-day.avail.sel{background:var(--ocoa);color:#fff}
 .ob-chip{border:1px solid #d8cabd;background:#fff;border-radius:10px;padding:10px 14px;cursor:pointer;font-size:14px;min-width:64px;text-align:center;transition:.15s}
 .ob-chip:hover{border-color:var(--ocoa)}
 .ob-chip.sel{background:var(--ocoa);color:#fff;border-color:var(--ocoa)}

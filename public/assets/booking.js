@@ -104,6 +104,7 @@
         S.svc = d.service;
         (d.slots || []).forEach(function (s) { if (s.remaining <= 0) return; var day = s.starts_at.slice(0, 10); (S.byDate[day] = S.byDate[day] || []).push(s); });
         S.dates = Object.keys(S.byDate).sort();
+        S.month = S.dates.length ? S.dates[0].slice(0, 7) : null;
         render();
       })
       .catch(function () { root.innerHTML = '<div class="ob-card"><p class="ob-msg">' + T.err_net + "</p></div>"; });
@@ -133,6 +134,31 @@
     return { sub: sub, itbis: itbis, prop: prop, total: sub + itbis + prop };
   }
 
+  function calendarHTML() {
+    if (!S.month || !S.dates.length) return "";
+    var avail = {}; S.dates.forEach(function (d) { avail[d] = (S.byDate[d] || []).reduce(function (a, s) { return a + s.remaining; }, 0); });
+    var minMonth = S.dates[0].slice(0, 7), maxMonth = S.dates[S.dates.length - 1].slice(0, 7);
+    var y = parseInt(S.month.slice(0, 4), 10), m = parseInt(S.month.slice(5, 7), 10);
+    var first = new Date(Date.UTC(y, m - 1, 1));
+    var startDow = first.getUTCDay();
+    var dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    var title = new Intl.DateTimeFormat(lang === "es" ? "es-DO" : "en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(first);
+    var dows = lang === "es" ? ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá"] : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+    var h = '<div class="ob-cal"><div class="ob-cal-head">' +
+      '<button type="button" class="ob-cal-nav" data-mo="-1"' + (S.month <= minMonth ? " disabled" : "") + ' aria-label="previous month">&lsaquo;</button>' +
+      '<span class="ob-cal-title">' + title.charAt(0).toUpperCase() + title.slice(1) + "</span>" +
+      '<button type="button" class="ob-cal-nav" data-mo="1"' + (S.month >= maxMonth ? " disabled" : "") + ' aria-label="next month">&rsaquo;</button></div>';
+    h += '<div class="ob-cal-grid">';
+    dows.forEach(function (d) { h += '<span class="ob-cal-dow">' + d + "</span>"; });
+    for (var i = 0; i < startDow; i++) h += "<span></span>";
+    for (var day = 1; day <= dim; day++) {
+      var ds = y + "-" + String(m).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+      if (avail[ds]) h += '<button type="button" class="ob-cal-day avail' + (S.date === ds ? " sel" : "") + '" data-date="' + ds + '" title="' + avail[ds] + " " + T.guests.toLowerCase() + '">' + day + "</button>";
+      else h += '<span class="ob-cal-day muted">' + day + "</span>";
+    }
+    return h + "</div></div>";
+  }
+
   function render() {
     if (!S.dates.length) { root.innerHTML = '<div class="ob-card"><h2 class="ob-h">' + (lang === "es" ? S.svc.name_es : S.svc.name_en) + '</h2><p class="ob-msg">' + T.no_dates + "</p></div>"; return; }
     var isDay = S.svc.pricing_model === "quote"; // club house
@@ -141,13 +167,8 @@
     h += '<h2 class="ob-h">' + (lang === "es" ? S.svc.name_es : S.svc.name_en) + "</h2>";
     if (S.svc.base_price_cents) h += '<p class="ob-sub">' + money(S.svc.base_price_cents) + " " + T.per_person + "</p>";
 
-    // dates
-    h += '<div class="ob-step"><span class="ob-label">' + T.pick_date + '</span><div class="ob-dates">';
-    S.dates.forEach(function (d) {
-      h += '<div class="ob-chip' + (S.date === d ? " sel" : "") + '" data-date="' + d + '">' +
-        dfmt(d + "T12:00:00Z", { weekday: "short" }) + "<small>" + dfmt(d + "T12:00:00Z", { day: "numeric", month: "short" }) + "</small></div>";
-    });
-    h += "</div></div>";
+    // dates — month-grid calendar
+    h += '<div class="ob-step"><span class="ob-label">' + T.pick_date + "</span>" + calendarHTML() + "</div>";
 
     // sessions for selected date
     if (S.date) {
@@ -197,6 +218,14 @@
   function bind() {
     root.querySelectorAll("[data-date]").forEach(function (el) {
       el.onclick = function () { S.date = el.getAttribute("data-date"); S.slot = null; render(); };
+    });
+    root.querySelectorAll(".ob-cal-nav").forEach(function (el) {
+      el.onclick = function () {
+        if (el.disabled) return;
+        var y = parseInt(S.month.slice(0, 4), 10), m = parseInt(S.month.slice(5, 7), 10) + parseInt(el.getAttribute("data-mo"), 10);
+        if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+        S.month = y + "-" + String(m).padStart(2, "0"); render();
+      };
     });
     root.querySelectorAll("[data-slot]").forEach(function (el) {
       el.onclick = function () {
