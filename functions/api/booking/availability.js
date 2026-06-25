@@ -24,7 +24,7 @@ export async function onRequestGet({ request, env }) {
         from availability_slots a join services s on s.id = a.service_id
         where s.slug = 'club-house' and a.starts_at > now()`;
       clubMap = {};
-      ch.forEach((c) => { clubMap[String(c.d).slice(0, 10)] = Math.max(0, c.capacity - c.booked - c.held); });
+      ch.forEach((c) => { clubMap[new Date(c.d).toISOString().slice(0, 10)] = Math.max(0, c.capacity - c.booked - c.held); });
     }
 
     const from = u.searchParams.get("from"), to = u.searchParams.get("to");
