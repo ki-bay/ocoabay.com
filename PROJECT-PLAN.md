@@ -42,7 +42,7 @@ Legend: **[YOU]** = needs your action/credentials/content · **[ME]** = I build 
 | A4 | **Full Experience 3-course menu** dishes (EN/ES) | YOU | Replaces placeholder in the confirmation email. |
 | A5 | Verify Stripe test-card booking + emails on staging | ME | After A2/A3 — I run the live card flow before cutover. |
 | A6 | (Optional) Show all-in price in marketing body copy | ME | Widget already shows it; body text still says "+taxes*". |
-| A7 | **Set up scheduler** to hit the cron endpoints (Bearer ADMIN_TOKEN) | YOU+ME | Cloudflare Cron Worker or any scheduler → `/api/cron/{generate-slots,holds-sweeper,reminders,cs-digest,abandoned}`. I'll provide exact config. |
+| A7 | **Cron scheduler** | DONE/YOU | ✅ Cloudflare Cron Worker `ocoabay-cron` deployed (4 schedules). **Activate:** `cd cron-worker && npx wrangler secret put ADMIN_TOKEN` (same value as A2). After DNS, change `TARGET_BASE` in `cron-worker/wrangler.toml` to `https://ocoabay.com` + redeploy. |
 | A8 | **Attach custom domain + DNS cutover** to ocoabay.com | YOU | Steps in `CUTOVER.md`; `noindex` self-lifts on the real domain. |
 | A9 | Post-cutover verification | ME | Per `CUTOVER.md` checklist. |
 
@@ -60,7 +60,7 @@ Legend: **[YOU]** = needs your action/credentials/content · **[ME]** = I build 
 | B4 | Create employees in Odoo; put device user-id in `barcode` | YOU | Mapping field = `ODOO_EMP_MATCH_FIELD`. |
 | B5 | Configure device → Cloud/ADMS → `ocoabay.com` :443 HTTPS `/iclock/` + add SN to `DEVICE_SERIALS` | YOU | Device then pushes automatically. |
 | B6 | Verify live punches → `hr.attendance`; replay backfill | ME | After B1–B5. |
-| B7 | **DR payroll salary rules** (TSS, ISR, regalía, overtime, vacaciones) | ME | Custom (no DR localization). Build once Odoo is up. |
+| B7 | **DR payroll salary rules** (TSS, ISR, regalía, overtime, vacaciones) | ME | ✅ Design done in `ODOO-PAYROLL-DR.md` (rules, ISR brackets, parameters). Wire into Odoo once B1–B2 done; confirm rates with accountant. |
 | B8 | **Invoicing automation** (store/booking → `account.move`) | ME | The "later" item you flagged; scope after B1. |
 
 ---

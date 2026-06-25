@@ -1,0 +1,89 @@
+# OcoaBay — Dominican Republic Payroll Rules (Odoo design)
+
+There is **no official DR payroll localization** in Odoo, so the salary structure is **custom salary rules**
+on top of Odoo Enterprise Payroll. This is the design to implement once Odoo.sh is provisioned (Track B).
+Worked hours come from `hr.attendance` (the biometric feed) → drive `hr.payslip`.
+
+> ⚠️ Rates/brackets change by law and SIRLA/DGII/TSS notices. Treat the numbers below as the model to
+> **confirm with the client's accountant** before payroll runs live. Build the rates as **Odoo config
+> (Rule Parameters)**, not hard-coded, so they're updatable without code.
+
+---
+
+## 1. Pay components (salary structure "OcoaBay RD")
+
+Order matters — each rule references the previous bases.
+
+| Seq | Code | Rule | Formula (concept) |
+|---|---|---|---|
+| 10 | `BASIC` | Base salary | Contract monthly wage (or hourly × attendance hours) |
+| 20 | `OT` | Overtime | Hours > legal (44h/week) × rate (35% extra ≤68h; **100%** beyond / night / holiday) |
+| 30 | `GROSS` | Gross taxable | `BASIC + OT + other taxable allowances` |
+| 40 | `SFS` | Health (TSS) — employee | **3.04%** of `min(GROSS, SFS_CAP)` |
+| 50 | `AFP` | Pension (TSS) — employee | **2.87%** of `min(GROSS, AFP_CAP)` |
+| 60 | `TSS_EE` | Employee TSS total | `SFS + AFP` (≈ **5.91%**) |
+| 70 | `ISR_BASE` | Taxable for income tax | `GROSS − TSS_EE` (TSS is deductible before ISR) |
+| 80 | `ISR` | Income tax (retención) | Annual bracket table ÷ 12 (see §2) |
+| 90 | `NET` | Net pay | `GROSS − TSS_EE − ISR − other deductions` |
+
+**Employer cost (informational, not deducted from employee):**
+`SFS_ER` 7.09% · `AFP_ER` 7.10% · `SRL` (risk) ~1.10–1.30% · **INFOTEP** 1% of payroll.
+Add as employer lines / `EMP_COST` for true labor-cost reporting.
+
+---
+
+## 2. ISR (income tax) — annual brackets, retención mensual
+
+Apply on **annualized** `ISR_BASE`, then divide the year tax by 12. Bracket thresholds (RD$/year) — **confirm current DGII values**:
+
+| Annual taxable (RD$) | Tax |
+|---|---|
+| 0 – 416,220.00 | Exempt (0%) |
+| 416,220.01 – 624,329.00 | 15% of excess over 416,220 |
+| 624,329.01 – 867,123.00 | 31,216 + 20% of excess over 624,329 |
+| 867,123.01 + | 79,776 + 25% of excess over 867,123 |
+
+Implement as a **Rule Parameter** (table of `[threshold, base_tax, marginal_rate]`) so it updates without code.
+
+---
+
+## 3. Caps & parameters (Rule Parameters in Odoo)
+- `SFS_CAP` = 10 × national minimum wage (cap on health base) — **confirm**.
+- `AFP_CAP` = 20 × national minimum wage (cap on pension base) — **confirm**.
+- `OT_RATE_1` = 0.35 (overtime up to 68h/wk), `OT_RATE_2` = 1.00 (beyond / nights 9pm–7am / 100%-holidays).
+- `WEEK_LEGAL_HOURS` = 44.
+- Minimum wage by sector/company size (RD$) — **confirm current**.
+
+---
+
+## 4. Statutory periodic items
+- **Regalía pascual (13th month):** = total ordinary salary earned in the year ÷ 12; pay by **Dec 20**; **not** subject to ISR up to the legal limit. Model as a December run / separate input.
+- **Bonificación** (profit share, if applicable): per company policy / law.
+- **Vacaciones:** 14 days after 1 yr (18 after 5 yrs); vacation pay.
+- **Cesantía / preaviso** (severance): on termination, per years of service — handled at off-boarding, not monthly.
+
+---
+
+## 5. Attendance → payroll link
+- `hr.attendance` (from the biometric Push feed) gives worked hours per period.
+- Hourly/!fixed contracts: `BASIC = hourly_rate × worked_hours`; salaried: hours validate presence + compute `OT`.
+- Configure **Working Schedule** (44h/wk) so Odoo derives overtime vs regular from attendance.
+
+---
+
+## 6. Build steps in Odoo (once B1–B2 done)
+1. Create **Salary Structure** "OcoaBay RD" + the rules in §1 (Python-coded rules referencing Rule Parameters).
+2. Add **Rule Parameters**: TSS rates + caps, ISR bracket table, OT rates, legal hours, minimum wage.
+3. Configure **Working Schedules**, employee **Contracts** (wage, schedule, structure).
+4. Test payslips against a known manual calc for 2–3 employees (incl. an overtime case + an ISR-paying case).
+5. Set the **December regalía** run.
+6. Connect attendance: confirm worked-hours flow from `hr.attendance` into the payslip worked-days lines.
+
+---
+
+## 7. What I can prepare now (no Odoo access)
+- The **Python salary-rule code** for each component (ready to paste into Odoo's rule editor).
+- The **Rule-Parameter seed values** (as a checklist for the accountant to confirm).
+- A **payslip test workbook** (expected numbers for sample salaries) to validate the config.
+
+*Once Odoo.sh + API key exist, I wire it and run the validation payslips.*
