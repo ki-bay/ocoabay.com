@@ -31,6 +31,55 @@
   var money = function (c) { return new Intl.NumberFormat(lang === "es" ? "es-DO" : "en-US", { style: "currency", currency: "USD" }).format((c || 0) / 100); };
   var dfmt = function (iso, opts) { return new Intl.DateTimeFormat(lang === "es" ? "es-DO" : "en-US", Object.assign({ timeZone: "America/Santo_Domingo" }, opts)).format(new Date(iso)); };
 
+  // ---- service-specific detail fields (bilingual, dropdowns) ----
+  var OPT = function (v, en, es) { return { v: v, en: en, es: es }; };
+  var DIET = [OPT("", "No restrictions", "Sin restricciones"), OPT("Vegetarian", "Vegetarian", "Vegetariano"), OPT("Vegan", "Vegan", "Vegano"), OPT("Gluten-free", "Gluten-free", "Sin gluten"), OPT("Other", "Other (note below)", "Otro (indicar abajo)")];
+  var OCCASION = [OPT("", "—", "—"), OPT("Birthday", "Birthday", "Cumpleaños"), OPT("Anniversary", "Anniversary", "Aniversario"), OPT("Honeymoon", "Honeymoon", "Luna de miel"), OPT("Corporate", "Corporate / group", "Corporativo / grupo"), OPT("Other", "Other", "Otro")];
+  var TLANG = [OPT("English", "English", "Inglés"), OPT("Spanish", "Spanish", "Español")];
+  var SEATING = [OPT("", "No preference", "Sin preferencia"), OPT("Indoor", "Indoor", "Interior"), OPT("Outdoor", "Outdoor / terrace", "Exterior / terraza"), OPT("Poolside", "Poolside", "Junto a la piscina")];
+  var ARRIVAL = ["11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"].map(function (h) { return OPT(h, h, h); });
+  var MAINS = [OPT("Meat", "Meat", "Carne"), OPT("Fish", "Fish", "Pescado"), OPT("Vegetarian", "Vegetarian", "Vegetariano")];
+  var L = function (o) { return lang === "es" ? o.es : o.en; };
+  var FL = { tour_language: { en: "Tour language", es: "Idioma del tour" }, dietary: { en: "Dietary needs", es: "Necesidades dietéticas" },
+    occasion: { en: "Special occasion", es: "Ocasión especial" }, requests: { en: "Special requests / allergies", es: "Solicitudes especiales / alergias" },
+    seating: { en: "Seating preference", es: "Preferencia de mesa" }, arrival_time: { en: "Preferred arrival time", es: "Hora de llegada preferida" },
+    main: { en: "Main course — guest", es: "Plato fuerte — huésped" } };
+  // per-service field list (menu handled specially for full-experience)
+  var FIELDS = {
+    "wine-tour": [["tour_language", TLANG], ["dietary", DIET], ["occasion", OCCASION]],
+    "full-experience": [["tour_language", TLANG], ["dietary", DIET], ["occasion", OCCASION]],
+    "club-house": [["arrival_time", ARRIVAL], ["seating", SEATING], ["dietary", DIET], ["occasion", OCCASION]],
+  };
+
+  function fieldsHTML() {
+    var defs = FIELDS[service] || [];
+    var h = '<div class="ob-step"><span class="ob-label">' + (lang === "es" ? "Detalles de la experiencia" : "Experience details") + '</span><div class="ob-row">';
+    defs.forEach(function (d) {
+      var name = d[0], opts = d[1];
+      h += '<div class="ob-field"><label for="of-' + name + '">' + (lang === "es" ? FL[name].es : FL[name].en) + "</label>" +
+        '<select id="of-' + name + '" class="ob-detail" data-name="' + name + '">' +
+        opts.map(function (o) { return '<option value="' + o.v + '">' + L(o) + "</option>"; }).join("") + "</select></div>";
+    });
+    h += "</div>";
+    // Full Experience: per-guest 3-course main selection
+    if (service === "full-experience") {
+      h += '<div class="ob-row">';
+      for (var i = 1; i <= S.qty; i++) {
+        h += '<div class="ob-field"><label for="of-main-' + i + '">' + (lang === "es" ? FL.main.es : FL.main.en) + " " + i + "</label>" +
+          '<select id="of-main-' + i + '" class="ob-detail" data-name="main_guest_' + i + '">' +
+          MAINS.map(function (o) { return '<option value="' + o.v + '">' + L(o) + "</option>"; }).join("") + "</select></div>";
+      }
+      h += "</div>";
+    }
+    h += '<div class="ob-field"><label for="of-requests">' + (lang === "es" ? FL.requests.es : FL.requests.en) + '</label><textarea id="of-requests" class="ob-detail" data-name="requests" rows="2" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-family:inherit"></textarea></div>';
+    return h + "</div>";
+  }
+  function collectDetails() {
+    var det = {};
+    root.querySelectorAll(".ob-detail").forEach(function (el) { if (el.value) det[el.getAttribute("data-name")] = el.value; });
+    return det;
+  }
+
   var S = { svc: null, byDate: {}, dates: [], date: null, slot: null, qty: 2, stripe: null };
 
   root.innerHTML = '<div class="ob-card"><p class="ob-sub">' + T.loading + "</p></div>";
@@ -100,6 +149,8 @@
         h += '<p class="ob-note">' + T.by_consumption + "</p>";
       }
 
+      h += fieldsHTML();
+
       h += '<div class="ob-step"><span class="ob-label">' + T.details + "</span>" +
         '<div class="ob-row"><div class="ob-field"><label>' + T.name + ' *</label><input id="ob-name"></div>' +
         '<div class="ob-field"><label>' + T.email + ' *</label><input id="ob-email" type="email"></div></div>' +
@@ -155,6 +206,7 @@
     }
 
     if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msg.textContent = T.err_contact; return; }
+    var details = collectDetails();
     btn.disabled = true; btn.textContent = T.sending;
 
     fetch("/api/booking/hold", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slot_id: S.slot.slot_id, qty: S.qty }) })
@@ -162,7 +214,7 @@
       .then(function (h) {
         if (!h.ok) throw new Error(h.error || T.err_net);
         return fetch("/api/booking/confirm", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ hold_id: h.hold_id, name: name, email: email, phone: phone, language: lang }) }).then(function (r) { return r.json(); });
+          body: JSON.stringify({ hold_id: h.hold_id, name: name, email: email, phone: phone, language: lang, details: details }) }).then(function (r) { return r.json(); });
       })
       .then(function (c) {
         if (!c.ok) throw new Error(c.error || T.err_net);
